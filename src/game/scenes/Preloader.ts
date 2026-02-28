@@ -49,7 +49,6 @@ export default class Preloader extends Phaser.Scene {
     // IMAGES
     if(GameData.images != null) GameData.images.forEach((element: ImageAsset) => {
       this.load.image(element.name, element.path);
-      this.load.image("bg_core", "assets/images/bg_core.png");
     });
 
     // TILEMAPS
