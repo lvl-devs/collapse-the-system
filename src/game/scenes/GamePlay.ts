@@ -25,6 +25,7 @@ export default class GamePlay extends Phaser.Scene {
         txt.setFill(grad);
     };
 
+    // title
     const collapse = this.add.text(width / 2, height * 0.28, "C O L L A P S E", {
         fontFamily: "Orbitron", 
         fontSize: "95px", 
