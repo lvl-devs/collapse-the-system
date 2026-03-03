@@ -74,6 +74,48 @@ export default class Boot extends Phaser.Scene {
 
       },
       loop: true
+<<<<<<< HEAD
+    });
+  }
+
+  private triggerError() {
+
+    // Delay prima del glitch
+    this.time.delayedCall(500, () => {
+
+      // Camera shake
+      this.cameras.main.shake(500, 0.01);
+
+      // Cambia testo
+      this._loadingText.setText("SYSTEM FAILURE");
+
+      // Scritta ERROR gigante
+      const errorText = this.add.text(
+        this.game.canvas.width / 2,
+        this.game.canvas.height / 2 + 100,
+        "ERROR",
+        {
+          fontSize: "72px",
+          color: "#ff0033",
+          fontStyle: "bold"
+        }
+      ).setOrigin(0.5);
+
+      // Effetto glitch (tremolio)
+      this.tweens.add({
+        targets: errorText,
+        x: errorText.x + 10,
+        duration: 50,
+        yoyo: true,
+        repeat: 25
+      });
+
+      this.time.delayedCall(2000, () => {
+        this.scene.start("Menu");
+      });
+
+=======
+>>>>>>> cc6d338d0d449bb8c0c80720b0276b6eb58f8065
     });
   }
 
