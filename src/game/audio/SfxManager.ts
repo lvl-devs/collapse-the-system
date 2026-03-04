@@ -1,52 +1,26 @@
 import Phaser from "phaser";
 
-type PlaySfxConfig = Omit<Phaser.Types.Sound.SoundConfig, "loop" | "volume"> & {
-  volume?: number;
-};
-
 export default class SfxManager {
-  private static scene?: Phaser.Scene;
-  private static volume = 1;
-  private static muted = false;
-
-  static init(scene: Phaser.Scene, initialVolume = 1): void {
-    this.scene = scene;
-    this.volume = Phaser.Math.Clamp(initialVolume, 0, 1);
-  }
-
-  static preload(
+  static start(
     scene: Phaser.Scene,
-    assets: Array<{ key: string; path: string | string[] }>
-  ): void {
-    assets.forEach((asset) => {
-      if (!scene.cache.audio.exists(asset.key)) {
-        scene.load.audio(asset.key, asset.path);
-      }
-    });
-  }
-
-  static play(key: string, config: PlaySfxConfig = {}): void {
-    if (this.muted || !this.scene) {
+    key: string,
+    config: Phaser.Types.Sound.SoundConfig = {}
+  ): Phaser.Sound.BaseSound | undefined {
+    if (!scene.cache.audio.exists(key)) {
       return;
     }
 
-    if (!this.scene.cache.audio.exists(key)) {
-      return;
-    }
-
-    const finalVolume = Phaser.Math.Clamp((config.volume ?? 1) * this.volume, 0, 1);
-    this.scene.sound.play(key, {
+    const sound = scene.sound.add(key, {
       ...config,
-      volume: finalVolume,
+      volume: config.volume ?? 1,
       loop: false
     });
+
+    sound.play();
+    return sound;
   }
 
-  static setVolume(value: number): void {
-    this.volume = Phaser.Math.Clamp(value, 0, 1);
-  }
-
-  static setMuted(muted: boolean): void {
-    this.muted = muted;
+  static stop(scene: Phaser.Scene, key: string): void {
+    scene.sound.stopByKey(key);
   }
 }

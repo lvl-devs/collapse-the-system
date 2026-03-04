@@ -17,8 +17,6 @@ export default class Options extends Phaser.Scene {
   }
 
   create() {
-    SfxManager.init(this, GameData.sfxVolume ?? 0.7);
-
     const { width, height } = this.scale;
 
     // Background (leggermente “spento” come nello screenshot)
@@ -90,7 +88,6 @@ export default class Options extends Phaser.Scene {
       initial: GameData.sfxVolume ?? 0.7,
       onChange: (v) => {
         GameData.sfxVolume = v;
-        SfxManager.setVolume(v);
       },
     });
 
@@ -136,7 +133,7 @@ export default class Options extends Phaser.Scene {
         backG.setAlpha(0.85);
       })
       .on("pointerdown", () => {
-        SfxManager.play("ui_click", { volume: 0.6 });
+        SfxManager.start(this, "ui_click", { volume: 0.6 });
         this.scene.start("Menu");
       });
 
