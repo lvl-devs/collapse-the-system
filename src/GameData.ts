@@ -92,7 +92,9 @@ export const GameData: GameDataType = {
   atlas: [],
   spritesheets: [],
   sounds: [],
-  videos: [],
+  videos: [
+    { name: 'bg-menu', path: '/videos/bg-menu.mp4' }
+  ],
   scripts: [],
 
   fonts: [
