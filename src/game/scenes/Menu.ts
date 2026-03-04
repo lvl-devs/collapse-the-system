@@ -1,19 +1,20 @@
 import Phaser from "phaser";
 import GameData from "../../GameData";
 import AssetPipeline from "../systems/AssetPipeline";
+import MusicManager from "../audio/MusicManager";
 
 export default class Menu extends Phaser.Scene {
   private static readonly MENU_MUSIC_KEY = "menu-theme";
-  private menuMusic?: Phaser.Sound.BaseSound;
-  private unlockHandler?: () => void;
 
   constructor(){ super({ key: "Menu" }); }
 
   create(){
     this.sound.pauseOnBlur = false;
     AssetPipeline.startDeferredPreload(this);
-    this.startMenuMusic();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.clearUnlockListeners());
+    MusicManager.startForScene(this, Menu.MENU_MUSIC_KEY, {
+      loop: true,
+      volume: GameData.musicVolume ?? GameData.settings.audio
+    });
 
     const { width, height } = this.scale;
     const items = [
@@ -54,57 +55,5 @@ export default class Menu extends Phaser.Scene {
         .setFontFamily(GameData.preloader.loadingTextFont)
         .setShadow(3, 3, "#001E17", 0, false, true);
     });
-  }
-
-  private startMenuMusic(): void {
-    if (!this.cache.audio.exists(Menu.MENU_MUSIC_KEY)) {
-      return;
-    }
-
-    const existing = this.sound.get(Menu.MENU_MUSIC_KEY);
-    this.menuMusic = existing ?? this.sound.add(Menu.MENU_MUSIC_KEY, {
-      loop: true,
-      volume: GameData.musicVolume ?? GameData.settings.audio
-    });
-
-    if (this.sound.locked) {
-      this.registerUnlockListeners();
-      return;
-    }
-
-    this.playMenuMusic();
-  }
-
-  private playMenuMusic(): void {
-    if (!this.menuMusic || this.menuMusic.isPlaying) {
-      return;
-    }
-
-    this.menuMusic.play();
-    this.clearUnlockListeners();
-  }
-
-  private registerUnlockListeners(): void {
-    this.clearUnlockListeners();
-    const tryUnlock = () => {
-      this.sound.unlock();
-      this.playMenuMusic();
-    };
-
-    this.unlockHandler = tryUnlock;
-    this.input.once(Phaser.Input.Events.POINTER_DOWN, tryUnlock);
-    this.input.keyboard?.once(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, tryUnlock);
-    this.sound.once(Phaser.Sound.Events.UNLOCKED, tryUnlock, this);
-  }
-
-  private clearUnlockListeners(): void {
-    if (!this.unlockHandler) {
-      return;
-    }
-
-    this.input.off(Phaser.Input.Events.POINTER_DOWN, this.unlockHandler);
-    this.input.keyboard?.off(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, this.unlockHandler);
-    this.sound.off(Phaser.Sound.Events.UNLOCKED, this.unlockHandler, this);
-    this.unlockHandler = undefined;
   }
 }
