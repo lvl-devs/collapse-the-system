@@ -5,7 +5,7 @@ export default class Menu extends Phaser.Scene {
   constructor(){ super({ key: "Menu" }); }
 
   preload() {
-    this.load.image("bg_logo", "../assets/images/bg_logo.png");
+    this.load.video("mainmenu_video", "../assets/videos/mainmenu.mp4", true);
     this.load.image("title_img", "../assets/images/title.png");
   }
   
@@ -16,13 +16,20 @@ export default class Menu extends Phaser.Scene {
       { label: "Options", scene: "Options" },
       { label: "Credits", scene: "Credits" },
     ];
-    const bg = this.add.image(width / 2, height / 2, "bg_logo");
-    const scale = Math.max(width / bg.width, height / bg.height);
+    // ===== VIDEO BACKGROUND =====
+const bgVideo = this.add.video(width / 2, height / 2, "mainmenu_video");
+
+bgVideo.setOrigin(0.5);
+
+
+
+// Avvia il video
+bgVideo.play(true); // true = loop
     const baseX = width * 0.055;
     const baseY = height * 0.6;
     const gap = 80;
     
-    bg.setScale(scale);
+
     this.add
       .image(width * 0.01, height * 0.055, "title_img")
       .setOrigin(0, 0)
