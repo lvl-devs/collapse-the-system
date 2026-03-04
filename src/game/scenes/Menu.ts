@@ -9,15 +9,13 @@ export default class Menu extends Phaser.Scene {
 
   constructor(){ super({ key: "Menu" }); }
 
-  preload() {
+  preload(){
     if (!this.cache.audio.exists(Menu.MENU_MUSIC_KEY)) {
       this.load.audio(Menu.MENU_MUSIC_KEY, Menu.MENU_MUSIC_PATH);
     }
   }
 
-  preload(){ }
-
-  create() {
+  create(){
     this.sound.pauseOnBlur = false;
     this.startMenuMusic();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.clearUnlockListeners());
@@ -31,16 +29,7 @@ export default class Menu extends Phaser.Scene {
     const bgVideo = this.add.video(width / 2, height / 2, "bg-menu");
     bgVideo.setOrigin(0.5);
     bgVideo.play(true); // loop
-    const baseX = width * 0.055;
-    const baseY = height * 0.6;
-    const gap = 80;
-
-    this.add
-      .image(width * 0.01, height * 0.055, "title_img")
-      .setOrigin(0, 0)
-    const scale = Math.max(width / bg.width, height / bg.height);
     
-    bg.setScale(scale);
     this.add
       .text(width * 0.05, height * 0.05, GameData.globals.gameTitle, {
         color: "#70fdc2",
