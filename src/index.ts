@@ -13,6 +13,7 @@ window.addEventListener("load", () => {
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     pixelArt: true,
+    roundPixels: true,
     backgroundColor: GameData.globals.bgColor,
     parent: "app",
     scale: {
