@@ -56,6 +56,10 @@ export default class Menu extends Phaser.Scene {
         })
         .on("pointerout", () => {
           menuItem.setText(`${label}`)
+        })
+        .on("pointerdown", () => {
+          this.scene.stop(this);
+          this.scene.start(item.scene);
         });
     });
   }
