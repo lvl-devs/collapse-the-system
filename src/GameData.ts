@@ -2,6 +2,9 @@
 // TYPE DEFINITIONS
 // =============================
 
+import type { DungeonThemeKey, DungeonConfig } from "./game/systems/DungeonGenerator";
+export type { DungeonThemeKey, DungeonConfig };
+
 export interface Settings {
   graphics: number;
   audio: number;
@@ -28,6 +31,13 @@ export interface Menu {
   fontSize: number;
 }
 
+/** Procedural dungeon generation settings */
+export interface DungeonSettings {
+  defaultTheme: DungeonThemeKey;
+  availableThemes: DungeonThemeKey[];
+  defaultConfig: Omit<DungeonConfig, "theme" | "seed">;
+}
+
 export interface PreloaderConfig {
   loadingTextFont: string;
   loadingTextColor: string;
@@ -40,6 +50,7 @@ export interface GameDataType {
   menu: Menu;
   preloader: PreloaderConfig;
   settings: Settings;
+  dungeon: DungeonSettings;
 
   // optional per-channel volumes (0..1)
   sfxVolume?: number;
@@ -100,12 +111,36 @@ export const GameData: GameDataType = {
     vibration: true
   },
 
+  // ─── DUNGEON GENERATION ──────────────────────────────────────────────
+  // tileSize: 32  →  home.png è 672×352 = 21 col × 11 row a 32×32px (0 margin, 0 spacing)
+  // Architettura seguendo: "Modular Game Worlds in Phaser 3 (Tilemaps #3)" - Michael Hadley
+  dungeon: {
+    defaultTheme: "cyber",
+    availableThemes: ["cyber", "cave", "facility", "void"],
+    defaultConfig: {
+      width:       50,
+      height:      50,
+      tileSize:    32,
+      doorPadding: 2,
+      rooms: {
+        width:    { min: 7, max: 15, onlyOdd: true },
+        height:   { min: 7, max: 15, onlyOdd: true },
+        maxRooms: 12,
+        maxArea:  150,
+      },
+    },
+  },
+
   sfxVolume: 0.7,
   musicVolume: 0.6,
 
   images: [
     { name: "bg_logo", path: "/images/bg_logo.png" },
     { name: "title_img", path: "/images/title.png" },
+    { name: "tileset-cyber", path: "/tilemaps/home.png" },
+    { name: "tileset-cave", path: "/tilemaps/home.png" },
+    { name: "tileset-facility", path: "/tilemaps/home.png" },
+    { name: "tileset-void", path: "/tilemaps/home.png" },
   ],
 
   tilemaps: [],
