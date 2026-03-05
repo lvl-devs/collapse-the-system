@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GameData } from "../../GameData";
 import SfxManager from "../audio/SfxManager";
 import MusicManager from "../audio/MusicManager";
+import SettingsStorage from "../systems/SettingsStorage";
 
 export default class Options extends Phaser.Scene {
 
@@ -17,17 +18,18 @@ export default class Options extends Phaser.Scene {
   }
 
   create() {
+    SettingsStorage.loadVolumeSettings();
 
     this.sound.pauseOnBlur = false;
 
     MusicManager.start(this, Options.MENU_MUSIC_KEY, {
       loop: true,
-      volume: GameData.musicVolume ?? 0.6
+      volume: MusicManager.toEngineVolume(GameData.musicVolume ?? 0.6)
     });
 
     SfxManager.start(this, Options.RAIN_SFX_KEY, {
       loop: true,
-      volume: GameData.sfxVolume ?? 0.35
+      volume: GameData.sfxVolume ?? 0.7
     });
 
     const { width, height } = this.scale;
@@ -47,6 +49,9 @@ export default class Options extends Phaser.Scene {
       GameData.sfxVolume ?? 0.7,
       (v:number)=>{
         GameData.sfxVolume = v;
+        SettingsStorage.saveSfxVolume(v);
+
+        SfxManager.setVolume(this, Options.RAIN_SFX_KEY, v);
       }
     );
 
@@ -56,6 +61,12 @@ export default class Options extends Phaser.Scene {
       GameData.musicVolume ?? 0.6,
       (v:number)=>{
         GameData.musicVolume = v;
+        SettingsStorage.saveMusicVolume(v);
+
+        MusicManager.start(this, Options.MENU_MUSIC_KEY, {
+          loop: true,
+          volume: MusicManager.toEngineVolume(v)
+        });
       }
     );
 
@@ -87,7 +98,7 @@ export default class Options extends Phaser.Scene {
     });
 
     back.on("pointerdown", ()=>{
-      SfxManager.start(this,"ui_click",{volume:0.6});
+      SfxManager.start(this,"ui_click",{volume:0.6 * (GameData.sfxVolume ?? 0.7)});
       this.scene.start("Menu");
     });
 
@@ -145,7 +156,7 @@ this.add.text(
     const neon = 0x70fdc2;
     const width = 260;
 
-    const line = this.add.rectangle(
+    this.add.rectangle(
       cx,
       cy,
       width,
