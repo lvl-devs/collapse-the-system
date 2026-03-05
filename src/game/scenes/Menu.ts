@@ -14,13 +14,16 @@ export default class Menu extends Phaser.Scene {
   constructor(){ super({ key: "Menu" }); }
 
   create(){
+    this._selectedIndex = 0;
+    this._menuItems = [];
+
     this.sound.pauseOnBlur = false;
     AssetPipeline.startDeferredPreload(this);
-    MusicManager.startForScene(this, Menu.MENU_MUSIC_KEY, {
+    MusicManager.start(this, Menu.MENU_MUSIC_KEY, {
       loop: true,
       volume: GameData.musicVolume ?? GameData.settings.audio
     });
-    SfxManager.startForScene(this, Menu.RAIN_SFX_KEY, {
+    SfxManager.start(this, Menu.RAIN_SFX_KEY, {
       loop: true,
       volume: GameData.sfxVolume ?? 0.35
     });
@@ -75,30 +78,42 @@ export default class Menu extends Phaser.Scene {
 
     this.updateMenu();
 
-    this.input.keyboard!.on("keydown-UP", () => {
+    const onUp = () => {
       this._selectedIndex = (this._selectedIndex - 1 + this._menuItems.length) % this._menuItems.length;
       this.updateMenu();
       if(localStorage.getItem("soundEffectsEnabled") === "true")
         this.sound.play("menuSelect");
-    });
+    };
 
-    this.input.keyboard!.on("keydown-DOWN", () => {
+    const onDown = () => {
       this._selectedIndex = (this._selectedIndex + 1) % this._menuItems.length;
       this.updateMenu();
       if(localStorage.getItem("soundEffectsEnabled") === "true")
         this.sound.play("menuSelect");
-    });
+    };
 
-    this.input.keyboard!.on("keydown-ENTER", () => {
+    const onEnter = () => {
       if(localStorage.getItem("soundEffectsEnabled") === "true")
         this.sound.play("menuSelect");
       this.selectItem(this._selectedIndex);
-    });
+    };
 
-    this.input.keyboard!.on("keydown-SPACE", () => {
+    const onSpace = () => {
       if(localStorage.getItem("soundEffectsEnabled") === "true")
         this.sound.play("menuSelect");
       this.selectItem(this._selectedIndex);
+    };
+
+    this.input.keyboard!.on("keydown-UP", onUp);
+    this.input.keyboard!.on("keydown-DOWN", onDown);
+    this.input.keyboard!.on("keydown-ENTER", onEnter);
+    this.input.keyboard!.on("keydown-SPACE", onSpace);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.off("keydown-UP", onUp);
+      this.input.keyboard?.off("keydown-DOWN", onDown);
+      this.input.keyboard?.off("keydown-ENTER", onEnter);
+      this.input.keyboard?.off("keydown-SPACE", onSpace);
     });
   }
 
@@ -112,7 +127,10 @@ export default class Menu extends Phaser.Scene {
 
   private selectItem(index: number){
     const item = GameData.menu.items[index];
-    this.scene.stop(this);
+    if (item.scene === "GamePlay") {
+      MusicManager.stop(this, Menu.MENU_MUSIC_KEY);
+      SfxManager.stop(this, Menu.RAIN_SFX_KEY);
+    }
     this.scene.start(item.scene);
   }
 

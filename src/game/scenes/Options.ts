@@ -1,6 +1,7 @@
 import Phaser from "phaser";
-import { GameData } from "../../GameData"; // adattalo se il path è diverso
+import { GameData } from "../../GameData";
 import SfxManager from "../audio/SfxManager";
+import MusicManager from "../audio/MusicManager";
 
 type SliderConfig = {
   label: string;
@@ -12,14 +13,27 @@ type SliderConfig = {
 };
 
 export default class Options extends Phaser.Scene {
+  private static readonly MENU_MUSIC_KEY = "menu-theme";
+  private static readonly RAIN_SFX_KEY = "rain-sfx";
+
   constructor() {
     super("Options");
   }
 
   create() {
+    this.sound.pauseOnBlur = false;
+    MusicManager.start(this, Options.MENU_MUSIC_KEY, {
+      loop: true,
+      volume: GameData.musicVolume ?? GameData.settings.audio
+    });
+    SfxManager.start(this, Options.RAIN_SFX_KEY, {
+      loop: true,
+      volume: GameData.sfxVolume ?? 0.35
+    });
+
     const { width, height } = this.scale;
 
-    // Background (leggermente “spento” come nello screenshot)
+    // Background
     const bg = this.add.image(width / 2, height / 2, "bg_logo");
     this.scaleToCover(bg, width, height);
     bg.setAlpha(0.75);
@@ -123,6 +137,7 @@ export default class Options extends Phaser.Scene {
     backTxt.setShadow(2, 2, "#0b5b47", 0, true, true);
 
     const backHit = this.add.circle(backCX, backCY, backR + 6, 0x000000, 0.001);
+    backHit.setDepth(20);
     backHit.setInteractive({ useHandCursor: true })
       .on("pointerover", () => {
         backTxt.setColor("#a9ffe2");
@@ -134,11 +149,22 @@ export default class Options extends Phaser.Scene {
       })
       .on("pointerdown", () => {
         SfxManager.start(this, "ui_click", { volume: 0.6 });
-        this.scene.start("Menu");
+        this.goBackToMenu();
       });
 
-    // Responsivo
-    this.scale.on("resize", () => this.scene.restart());
+    backTxt
+      .setDepth(21)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        SfxManager.start(this, "ui_click", { volume: 0.6 });
+        this.goBackToMenu();
+      });
+
+    const escKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    escKey?.on("down", this.goBackToMenu, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      escKey?.off("down", this.goBackToMenu, this);
+    });
   }
 
   private drawSlot(cx: number, cy: number, w: number, h: number, label: string, neon: number, screenH: number) {
@@ -222,5 +248,9 @@ export default class Options extends Phaser.Scene {
     const ih = img.height;
     const scale = Math.max(w / iw, h / ih);
     img.setScale(scale);
+  }
+
+  private goBackToMenu(): void {
+    this.scene.start("Menu");
   }
 }
