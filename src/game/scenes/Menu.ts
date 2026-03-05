@@ -13,11 +13,11 @@ export default class Menu extends Phaser.Scene {
   create(){
     this.sound.pauseOnBlur = false;
     AssetPipeline.startDeferredPreload(this);
-    MusicManager.startForScene(this, Menu.MENU_MUSIC_KEY, {
+    MusicManager.start(this, Menu.MENU_MUSIC_KEY, {
       loop: true,
       volume: GameData.musicVolume ?? GameData.settings.audio
     });
-    SfxManager.startForScene(this, Menu.RAIN_SFX_KEY, {
+    SfxManager.start(this, Menu.RAIN_SFX_KEY, {
       loop: true,
       volume: GameData.sfxVolume ?? 0.35
     });
@@ -64,6 +64,10 @@ export default class Menu extends Phaser.Scene {
           menuItem.setText(`${label}`)
         })
         .on("pointerdown", () => {
+          if (item.scene === "GamePlay") {
+            MusicManager.stop(this, Menu.MENU_MUSIC_KEY);
+            SfxManager.stop(this, Menu.RAIN_SFX_KEY);
+          }
           this.scene.stop(this);
           this.scene.start(item.scene);
         });

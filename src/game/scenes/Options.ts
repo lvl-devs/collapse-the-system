@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GameData } from "../../GameData"; // adattalo se il path è diverso
 import SfxManager from "../audio/SfxManager";
+import MusicManager from "../audio/MusicManager";
 
 type SliderConfig = {
   label: string;
@@ -12,11 +13,24 @@ type SliderConfig = {
 };
 
 export default class Options extends Phaser.Scene {
+  private static readonly MENU_MUSIC_KEY = "menu-theme";
+  private static readonly RAIN_SFX_KEY = "rain-sfx";
+
   constructor() {
     super("Options");
   }
 
   create() {
+    this.sound.pauseOnBlur = false;
+    MusicManager.start(this, Options.MENU_MUSIC_KEY, {
+      loop: true,
+      volume: GameData.musicVolume ?? GameData.settings.audio
+    });
+    SfxManager.start(this, Options.RAIN_SFX_KEY, {
+      loop: true,
+      volume: GameData.sfxVolume ?? 0.35
+    });
+
     const { width, height } = this.scale;
 
     // Background (leggermente “spento” come nello screenshot)

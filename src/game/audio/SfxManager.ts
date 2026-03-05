@@ -16,7 +16,7 @@ export default class SfxManager {
     const sound = scene.sound.get(key) ?? scene.sound.add(key, {
       ...config,
       volume: config.volume ?? 1,
-      loop: false
+      loop: config.loop ?? false
     });
 
     if (scene.sound.locked) {
