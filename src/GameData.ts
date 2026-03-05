@@ -21,6 +21,13 @@ export interface Globals {
   };
 }
 
+export interface Menu {
+  items: {label: string, scene: string}[];
+  font: string;
+  align: string;
+  fontSize: number;
+}
+
 export interface PreloaderConfig {
   loadingTextFont: string;
   loadingTextColor: string;
@@ -30,6 +37,7 @@ export interface PreloaderConfig {
 
 export interface GameDataType {
   globals: Globals;
+  menu: Menu;
   preloader: PreloaderConfig;
   settings: Settings;
 
@@ -65,6 +73,17 @@ export const GameData: GameDataType = {
       key: "Pixelify Sans",
       path: "/fonts/PixelifySans.ttf"
     }
+  },
+
+  menu: {
+    items: [
+      { label: "Start Game", scene: "GamePlay" },
+      { label: "Options", scene: "Options" },
+      { label: "Credits", scene: "Credits" },
+    ],
+    font: "Pixelify Sans",
+    align: 'left',
+    fontSize: 50,
   },
 
   preloader: {

@@ -17,11 +17,6 @@ export default class Menu extends Phaser.Scene {
     });
 
     const { width, height } = this.scale;
-    const items = [
-      { label: "Play", scene: "GamePlay" },
-      { label: "Options", scene: "Options" },
-      { label: "Credits", scene: "Credits" },
-    ];
     const bgVideo = this.add.video(width / 2, height / 2, "bg-menu");
     bgVideo.setOrigin(0.5);
     bgVideo.play(true); // loop
@@ -41,19 +36,27 @@ export default class Menu extends Phaser.Scene {
       .setFontFamily(GameData.preloader.loadingTextFont)
       .setScale(Math.min(width / 1920, height / 1080) * 1.05);
 
-    items.forEach((item, index) => {
+    GameData.menu.items.forEach((item, index) => {
+      const label = item.label.toUpperCase()
       const baseX = width * 0.05;
       const baseY = height * 0.6;
       const gap = 80;
       const startY = baseY + index * gap;
 
-      this.add
-        .text(baseX, startY, item.label.toUpperCase(), {
+      let menuItem = this.add
+        .text(baseX, startY, label, {
           color: "#70fdc2",
         })
-        .setFontSize(60)
+        .setFontSize(GameData.menu.fontSize)
         .setFontFamily(GameData.preloader.loadingTextFont)
-        .setShadow(3, 3, "#001E17", 0, false, true);
+        .setShadow(3, 3, "#001E17", 0, false, true)
+        .setInteractive()
+        .on("pointerover", () => {
+          menuItem.setText(`> ${label}`)
+        })
+        .on("pointerout", () => {
+          menuItem.setText(`${label}`)
+        });
     });
   }
 }
