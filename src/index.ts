@@ -30,7 +30,7 @@ window.addEventListener("load", () => {
       Menu,
       GamePlay,
       Options,
-      Credits
+      Credits,
     ],
     physics: {
       default: "arcade",

@@ -93,8 +93,8 @@ export default class Options extends Phaser.Scene {
     const slotW = panelW * 0.78;
     const slotH = u * 0.12;
 
-    const slot1Y = panelY - panelH * 0.23;
-    const slot2Y = panelY - panelH * 0.01;
+    const slot1Y = panelY - panelH * 0.30;
+    const slot2Y = panelY - panelH * 0.04;
 
     const slot1Box = this.drawHudBox(panelX, slot1Y, slotW, slotH, neon, false);
     const slot2Box = this.drawHudBox(panelX, slot2Y, slotW, slotH, neon, false);
@@ -119,9 +119,9 @@ export default class Options extends Phaser.Scene {
       .setOrigin(0.5);
 
     // ===== SLIDERS =====
-    const sliderW = slotW * 0.82;
-    const slider1Y = slot1Y + slotH * 0.65;
-    const slider2Y = slot2Y + slotH * 0.65;
+    const sliderW = slotW * 1.00;
+    const slider1Y = slot1Y + slotH * 0.74;
+    const slider2Y = slot2Y + slotH * 0.74;
 
     const slider1 = this.createHudSlider({
       cx: panelX,
@@ -248,10 +248,6 @@ export default class Options extends Phaser.Scene {
     g.lineTo(x + w * 0.88, y);
     g.strokePath();
 
-    const notchW = w * 0.18;
-    const notchH = h * 0.05;
-    g.lineStyle(2, neon, 0.85);
-    g.strokeRoundedRect(cx - notchW / 2, y + h - notchH / 2, notchW, notchH, 6);
 
     g.lineStyle(2, neon, 0.55);
     g.beginPath();
