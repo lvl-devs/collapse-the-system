@@ -1,7 +1,3 @@
-// =============================
-// TYPE DEFINITIONS
-// =============================
-
 import type { DungeonThemeKey, DungeonConfig } from "./game/systems/DungeonGenerator";
 export type { DungeonThemeKey, DungeonConfig };
 
@@ -31,7 +27,6 @@ export interface Menu {
   fontSize: number;
 }
 
-/** Procedural dungeon generation settings */
 export interface DungeonSettings {
   defaultTheme: DungeonThemeKey;
   availableThemes: DungeonThemeKey[];
@@ -51,11 +46,8 @@ export interface GameDataType {
   preloader: PreloaderConfig;
   settings: Settings;
   dungeon: DungeonSettings;
-
-  // optional per-channel volumes (0..1)
   sfxVolume?: number;
   musicVolume?: number;
-
   images: { name: string; path: string }[];
   tilemaps: any[];
   atlas: any[];
@@ -67,10 +59,6 @@ export interface GameDataType {
   webfonts: { key: string }[];
   bitmapfonts: any[];
 }
-
-// =============================
-// GAME DATA OBJECT
-// =============================
 
 export const GameData: GameDataType = {
 
@@ -111,22 +99,19 @@ export const GameData: GameDataType = {
     vibration: true
   },
 
-  // ─── DUNGEON GENERATION ──────────────────────────────────────────────
-  // tileSize: 32  →  home.png è 672×352 = 21 col × 11 row a 32×32px (0 margin, 0 spacing)
-  // Architettura seguendo: "Modular Game Worlds in Phaser 3 (Tilemaps #3)" - Michael Hadley
   dungeon: {
     defaultTheme: "cyber",
     availableThemes: ["cyber", "cave", "facility", "void"],
     defaultConfig: {
-      width:       50,
-      height:      50,
-      tileSize:    32,
+      width: 50,
+      height: 50,
+      tileSize: 32,
       doorPadding: 2,
       rooms: {
-        width:    { min: 7, max: 15, onlyOdd: true },
-        height:   { min: 7, max: 15, onlyOdd: true },
+        width: { min: 7, max: 15, onlyOdd: true },
+        height: { min: 7, max: 15, onlyOdd: true },
         maxRooms: 12,
-        maxArea:  150,
+        maxArea: 150,
       },
     },
   },
@@ -145,7 +130,9 @@ export const GameData: GameDataType = {
 
   tilemaps: [],
   atlas: [],
-  spritesheets: [],
+  spritesheets: [
+    { name: "hacker", path: "/spritesheets/hacker.png", width: 32, height: 45, frames: 12 }
+  ],
   sounds: [
     { name: "menu-theme", paths: ["/music/menu.mp3"] },
     { name: "rain-sfx", paths: ["/sounds/rain.mp3"] }
