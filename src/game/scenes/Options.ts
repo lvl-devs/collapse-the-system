@@ -138,7 +138,7 @@ export default class Options extends Phaser.Scene {
         SettingsStorage.saveSfxVolume(v);
 
         if (this.returnMode === "menu") {
-          if (this.rainSfx) this.rainSfx.setVolume(v);
+          if (this.rainSfx) this.applySoundVolume(this.rainSfx, v);
           else SfxManager.setVolume(this, Options.RAIN_SFX_KEY, v);
         }
       },
@@ -155,7 +155,7 @@ export default class Options extends Phaser.Scene {
 
         if (this.returnMode === "menu") {
           const engineV = MusicManager.toEngineVolume(v);
-          if (this.menuMusic) this.menuMusic.setVolume(engineV);
+          if (this.menuMusic) this.applySoundVolume(this.menuMusic, engineV);
           else {
             this.menuMusic = MusicManager.start(this, Options.MENU_MUSIC_KEY, {
               loop: true,
@@ -227,6 +227,11 @@ export default class Options extends Phaser.Scene {
     }
 
     this.scene.start("Menu");
+  }
+
+  private applySoundVolume(sound: Phaser.Sound.BaseSound | undefined, volume: number): void {
+    if (!sound) return;
+    (sound as any).volume = volume;
   }
 
   private playIntro(objs: Phaser.GameObjects.GameObject[]) {
