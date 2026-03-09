@@ -36,10 +36,6 @@ export default class Options extends Phaser.Scene {
     super("Options");
   }
 
-  preload() {
-    this.load.image("bg_options", "../assets/images/bg_credits.png");
-  }
-
   init(data: OptionsSceneData): void {
     this.returnMode = data.returnMode ?? "menu";
     this.pauseMenuSceneKey = data.pauseMenuSceneKey ?? "PauseMenu";
@@ -50,6 +46,13 @@ export default class Options extends Phaser.Scene {
     this.sound.pauseOnBlur = false;
 
     if (this.returnMode === "menu") {
+      if (!this.scene.isActive("MenuBackdrop") && !this.scene.isSleeping("MenuBackdrop")) {
+        this.scene.launch("MenuBackdrop");
+      } else if (this.scene.isSleeping("MenuBackdrop")) {
+        this.scene.wake("MenuBackdrop");
+      }
+      this.scene.sendToBack("MenuBackdrop");
+
       this.menuMusic = MusicManager.start(this, Options.MENU_MUSIC_KEY, {
         loop: true,
         volume: MusicManager.toEngineVolume(GameData.musicVolume ?? 0.6),
@@ -62,13 +65,7 @@ export default class Options extends Phaser.Scene {
     }
 
     const { width, height } = this.scale;
-
-    const bg = this.add.image(width / 2, height / 2, "bg_options");
-    const bgScale = Math.max(width / bg.width, height / bg.height);
-    bg.setScale(bgScale);
-    bg.setAlpha(0.9);
-
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.35);
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.5);
 
     const uBase = Math.min(width, height);
     const fit = Phaser.Math.Clamp(height / (uBase * 1.05), 0.72, 1);
