@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { GameData } from "../../GameData";
 import SfxManager from "../audio/SfxManager";
+import MusicManager from "../audio/MusicManager";
+import SettingsStorage from "../systems/SettingsStorage";
 
 type SliderConfig = {
   label: string;
@@ -11,12 +13,50 @@ type SliderConfig = {
   onChange: (v: number) => void;
 };
 
+type SliderOut = {
+  container: Phaser.GameObjects.Container;
+  knob: Phaser.GameObjects.Rectangle;
+};
+
 export default class Options extends Phaser.Scene {
+  private static readonly MENU_MUSIC_KEY = "menu-theme";
+  private static readonly RAIN_SFX_KEY = "rain-sfx";
+
+  private returnMode: "menu" | "pause" = "menu";
+  private pauseMenuSceneKey = "PauseMenu";
+
+  private menuMusic?: Phaser.Sound.BaseSound;
+  private rainSfx?: Phaser.Sound.BaseSound;
+
   constructor() {
     super("Options");
   }
 
+  preload() {
+    this.load.image("bg_options", "../assets/images/bg_credits.png");
+  }
+
+  init(data: OptionsSceneData): void {
+    this.returnMode = data.returnMode ?? "menu";
+    this.pauseMenuSceneKey = data.pauseMenuSceneKey ?? "PauseMenu";
+  }
+
   create() {
+    SettingsStorage.loadVolumeSettings();
+    this.sound.pauseOnBlur = false;
+
+    if (this.returnMode === "menu") {
+      this.menuMusic = MusicManager.start(this, Options.MENU_MUSIC_KEY, {
+        loop: true,
+        volume: MusicManager.toEngineVolume(GameData.musicVolume ?? 0.6),
+      });
+
+      this.rainSfx = SfxManager.start(this, Options.RAIN_SFX_KEY, {
+        loop: true,
+        volume: GameData.sfxVolume ?? 0.7,
+      });
+    }
+
     const { width, height } = this.scale;
 
     const bg = this.add.image(width / 2, height / 2, "bg_logo");
@@ -82,14 +122,19 @@ export default class Options extends Phaser.Scene {
       initial: GameData.sfxVolume ?? 0.7,
       onChange: (v) => {
         GameData.sfxVolume = v;
+        SettingsStorage.saveSfxVolume(v);
+
+        if (this.returnMode === "menu") {
+          if (this.rainSfx) this.rainSfx.setVolume(v);
+          else SfxManager.setVolume(this, Options.RAIN_SFX_KEY, v);
+        }
       },
     });
 
-    this.createSlider({
-      label: "music",
-      x: sliderX,
-      y: slider2Y,
-      width: sliderW,
+    const slider2 = this.createHudSlider({
+      cx: panelX,
+      cy: slider2Y,
+      w: sliderW,
       initial: GameData.musicVolume ?? 0.6,
       onChange: (v) => {
         GameData.musicVolume = v;
@@ -104,55 +149,143 @@ export default class Options extends Phaser.Scene {
     backG.lineStyle(3, neon, 0.85);
     backG.strokeCircle(backCX, backCY, backR);
 
-    const backTxt = this.add
-      .text(backCX, backCY, "Back", {
-        fontFamily: "monospace",
-        fontSize: `${Math.round(height * 0.03)}px`,
-        color: "#4fffbf",
+    const backText = this.add
+      .text(panelX, backY, "BACK", {
+        fontFamily: "Pixelify Sans",
+        fontSize: `${Math.round(u * 0.06)}px`,
+        color: "#70fdc2",
       })
-      .setOrigin(0.5);
-    backTxt.setShadow(2, 2, "#0b5b47", 0, true, true);
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
-    const backHit = this.add.circle(backCX, backCY, backR + 6, 0x000000, 0.001);
-    backHit.setInteractive({ useHandCursor: true })
-      .on("pointerover", () => {
-        backTxt.setColor("#a9ffe2");
-        backG.setAlpha(1);
-      })
-      .on("pointerout", () => {
-        backTxt.setColor("#4fffbf");
-        backG.setAlpha(0.85);
-      })
-      .on("pointerdown", () => {
-        SfxManager.start(this, "ui_click", { volume: 0.6 });
-        this.scene.start("Menu");
-      });
+    backText.on("pointerover", () => {
+      backText.setColor("#FFFFFF");
+      backText.setScale(1.08);
+    });
+
+    backText.on("pointerout", () => {
+      backText.setColor("#70fdc2");
+      backText.setScale(1);
+    });
+
+    backText.on("pointerdown", () => {
+      SfxManager.start(this, "ui_click", { volume: 0.6 * (GameData.sfxVolume ?? 0.7) });
+      this.goBack();
+    });
+
+    const escKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    escKey?.on("down", this.goBack, this);
+
+    this.scale.on("resize", () => {
+      this.scene.restart();
+    });
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      escKey?.off("down", this.goBack, this);
+      this.scale.off("resize");
+    });
+
+    this.playIntro([
+      headerBox,
+      headerText,
+      panelBox,
+      slot1Box,
+      slot2Box,
+      sfxLabel,
+      musicLabel,
+      slider1.container,
+      slider2.container,
+      backText,
+    ]);
+  }
+
+  private goBack(): void {
+    if (this.returnMode === "pause") {
+      this.scene.stop();
+      this.scene.resume(this.pauseMenuSceneKey);
+      this.input.keyboard?.resetKeys();
+      return;
+    }
+
+    this.scene.start("Menu");
+  }
+
+  private playIntro(objs: Phaser.GameObjects.GameObject[]) {
+    for (const o of objs) {
+      if ((o as any).setAlpha) (o as any).setAlpha(0);
+      if (typeof (o as any).y === "number") (o as any).y += 14;
+    }
+
+    this.tweens.add({
+      targets: objs as any,
+      alpha: 1,
+      y: (target: any) => (typeof target.y === "number" ? target.y - 14 : target.y),
+      duration: 520,
+      ease: "Sine.Out",
+      delay: this.tweens.stagger(70, {}),
+    });
+  }
+
+  private drawHudPanel(cx: number, cy: number, w: number, h: number, neon: number) {
+    const g = this.add.graphics();
+    const x = cx - w / 2;
+    const y = cy - h / 2;
+
+    g.fillStyle(0x000000, 0.14);
+    g.fillRoundedRect(x, y, w, h, 10);
+
+    g.lineStyle(3, neon, 0.95);
+    g.strokeRoundedRect(x, y, w, h, 10);
+
+    g.lineStyle(1, neon, 0.35);
+    g.strokeRoundedRect(x + 6, y + 6, w - 12, h - 12, 8);
+
+    g.lineStyle(2, neon, 0.7);
+    g.beginPath();
+    g.moveTo(x + w * 0.12, y);
+    g.lineTo(x + w * 0.22, y);
+    g.moveTo(x + w * 0.78, y);
+    g.lineTo(x + w * 0.88, y);
+    g.strokePath();
 
     this.scale.on("resize", () => this.scene.restart());
   }
 
-  private drawSlot(cx: number, cy: number, w: number, h: number, label: string, neon: number, screenH: number) {
+  private drawHudBox(cx: number, cy: number, w: number, h: number, neon: number, isHeader: boolean) {
     const g = this.add.graphics();
-    g.lineStyle(3, neon, 0.85);
-    this.roundRectStroke(g, cx - w / 2, cy - h / 2, w, h, 10);
+    const x = cx - w / 2;
+    const y = cy - h / 2;
 
-    const t = this.add.text(cx, cy, label, {
-      fontFamily: "monospace",
-      fontSize: `${Math.round(screenH * 0.035)}px`,
-      color: "#e8fff7",
-    }).setOrigin(0.5);
+    g.fillStyle(0x000000, isHeader ? 0.14 : 0.1);
+    g.fillRoundedRect(x, y, w, h, 8);
 
-    t.setShadow(2, 2, "#0b5b47", 0, true, true);
+    g.lineStyle(3, neon, 0.95);
+    g.strokeRoundedRect(x, y, w, h, 8);
+
+    g.lineStyle(1, neon, 0.35);
+    g.strokeRoundedRect(x + 5, y + 5, w - 10, h - 10, 7);
+
+    g.lineStyle(2, neon, 0.6);
+    g.beginPath();
+    g.moveTo(x + 10, y);
+    g.lineTo(x + 30, y);
+    g.moveTo(x + w - 30, y + h);
+    g.lineTo(x + w - 10, y + h);
+    g.strokePath();
+
+    return g;
   }
 
-  private createSlider(cfg: SliderConfig) {
-    const neon = 0x4fffbf;
+  private createHudSlider(cfg: SliderCfg): SliderOut {
+    const neon = 0x70fdc2;
+    const minX = cfg.cx - cfg.w / 2;
+    const maxX = cfg.cx + cfg.w / 2;
 
     const base = this.add.graphics();
-    base.lineStyle(2, neon, 0.45);
+    base.lineStyle(3, neon, 0.65);
     base.beginPath();
-    base.moveTo(cfg.x, cfg.y);
-    base.lineTo(cfg.x + cfg.width, cfg.y);
+    base.moveTo(minX, cfg.cy);
+    base.lineTo(maxX, cfg.cy);
     base.strokePath();
 
     const dots = this.add.graphics();
@@ -166,18 +299,37 @@ export default class Options extends Phaser.Scene {
     const knob = this.add.rectangle(0, 0, knobSize, knobSize, 0x000000, 0.0);
     knob.setStrokeStyle(3, neon, 0.9);
 
-    const startX = cfg.x + Phaser.Math.Clamp(cfg.initial, 0, 1) * cfg.width;
-    knob.setPosition(startX, cfg.y);
+    const setValueFromX = (x: number) => {
+      const clamped = Phaser.Math.Clamp(x, minX, maxX);
+      knob.x = clamped;
+      const v = (clamped - minX) / cfg.w;
+      cfg.onChange(Phaser.Math.Clamp(v, 0, 1));
+    };
+
+    setValueFromX(minX + Phaser.Math.Clamp(cfg.initial, 0, 1) * cfg.w);
+    knob.y = cfg.cy;
+
+    const hit = this.add.rectangle(cfg.cx, cfg.cy, cfg.w + 60, 44, 0x000000, 0.001);
+    hit.setInteractive({ useHandCursor: true });
 
     knob.setInteractive({ draggable: true, useHandCursor: true });
-
     this.input.setDraggable(knob);
+    knob.on("drag", (_p: any, dragX: number) => setValueFromX(dragX));
 
-    const updateFromX = (px: number) => {
-      const clamped = Phaser.Math.Clamp(px, cfg.x, cfg.x + cfg.width);
-      knob.x = clamped;
-      const v = (clamped - cfg.x) / cfg.width;
-      cfg.onChange(Phaser.Math.Clamp(v, 0, 1));
+    let holding = false;
+
+    hit.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      holding = true;
+      setValueFromX(p.worldX);
+    });
+
+    hit.on("pointermove", (p: Phaser.Input.Pointer) => {
+      if (!holding) return;
+      setValueFromX(p.worldX);
+    });
+
+    const stopHolding = () => {
+      holding = false;
     };
 
     knob.on("drag", (_p: unknown, dragX: number) => updateFromX(dragX));
@@ -201,10 +353,7 @@ export default class Options extends Phaser.Scene {
     g.strokePath();
   }
 
-  private scaleToCover(img: Phaser.GameObjects.Image, w: number, h: number) {
-    const iw = img.width;
-    const ih = img.height;
-    const scale = Math.max(w / iw, h / ih);
-    img.setScale(scale);
+    const container = this.add.container(0, 0, [base, inner, hit, knob]);
+    return { container, knob };
   }
 }
