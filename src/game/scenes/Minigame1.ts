@@ -256,10 +256,10 @@ export default class Minigame1 extends Phaser.Scene {
     const groupA = colors.slice(0, 5); // left ↔ right
     const groupB = colors.slice(5, 10); // top  ↔ bottom
 
-    // 70% of destination sockets are revealed → 7 revealed, 3 hidden
+    // 50% of destination sockets are revealed → 5 revealed, 5 hidden
     const revealMask = Phaser.Utils.Array.Shuffle([
-      ...Array(7).fill(true),
-      ...Array(3).fill(false),
+      ...Array(5).fill(true),
+      ...Array(5).fill(false),
     ]) as boolean[];
 
     const slots = () => Phaser.Utils.Array.Shuffle([0, 1, 2, 3, 4]) as number[];
