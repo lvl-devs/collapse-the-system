@@ -3,7 +3,6 @@ import { GameData } from "../../GameData";
 import DungeonGenerator from "../systems/DungeonGenerator";
 import type { DungeonBuildResult } from "../systems/DungeonGenerator";
 import AssetPipeline from "../systems/AssetPipeline";
-import MusicManager from "../audio/MusicManager";
 import { DEFAULT_TILES } from "../systems/TileMapping";
 import CharacterController, { createKeyboardMovementInput } from "../entities/CharacterController";
 
@@ -16,6 +15,7 @@ export default class GamePlay extends Phaser.Scene {
   private level = 0;
   private debugMode = false;
   private tileDebugGraphics?: Phaser.GameObjects.Graphics;
+  private escPauseKey?: Phaser.Input.Keyboard.Key;
 
   constructor() {
     super({ key: "GamePlay" });
@@ -96,10 +96,8 @@ export default class GamePlay extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.playerController.sprite, true, 0.1, 0.1);
 
-    this.input.keyboard!.once("keydown-ESC", () => {
-      MusicManager.stop(this, "game-theme");
-      this.scene.start("Menu");
-    });
+    this.escPauseKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.escPauseKey?.on("down", this.openPauseMenu, this);
 
     this.input.keyboard!.on("keydown-C", () => {
       this.debugMode = !this.debugMode;
@@ -151,6 +149,11 @@ export default class GamePlay extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100);
 
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.escPauseKey?.off("down", this.openPauseMenu, this);
+      this.escPauseKey = undefined;
+    });
+
     console.log(
       `[GamePlay] Level ${this.level} -- ${map.width}x${map.height} tiles` +
       ` -- ${this.dungeonResult.dungeon.rooms.length} rooms` +
@@ -162,5 +165,13 @@ export default class GamePlay extends Phaser.Scene {
     if (this.hasPlayerReachedStairs) return;
 
     this.playerController.update();
+  }
+
+  private openPauseMenu(): void {
+    if (this.scene.isActive("PauseMenu")) {
+      return;
+    }
+    this.scene.launch("PauseMenu", { parentSceneKey: this.scene.key });
+    this.scene.pause();
   }
 }
