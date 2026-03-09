@@ -176,7 +176,9 @@ export const GameData: GameDataType = {
   tilemaps: [],
   atlas: [],
   spritesheets: [
-    { name: "hacker", path: "/spritesheets/hacker.png", width: 32, height: 45, frames: 12 }
+    { name: "hacker", path: "/spritesheets/hacker.png", width: 32, height: 45, frames: 12 },
+    { name: "scientist", path: "/spritesheets/scientist.png", width: 32, height: 45, frames: 12 },
+    { name: "policeman", path: "/spritesheets/policeman.png", width: 32, height: 45, frames: 12 }
   ],
   sounds: [
     { name: "menu-theme", paths: ["/music/menu.mp3"] },
