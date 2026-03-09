@@ -4,12 +4,16 @@ import SfxManager from "../audio/SfxManager";
 import MusicManager from "../audio/MusicManager";
 import SettingsStorage from "../systems/SettingsStorage";
 
-type SliderConfig = {
-  label: string;
-  x: number;
-  y: number;
-  width: number;
-  initial: number;
+type OptionsSceneData = {
+  returnMode?: "menu" | "pause";
+  pauseMenuSceneKey?: string;
+};
+
+type SliderCfg = {
+  cx: number;
+  cy: number;
+  w: number;
+  initial: number; // 0..1
   onChange: (v: number) => void;
 };
 
@@ -59,66 +63,75 @@ export default class Options extends Phaser.Scene {
 
     const { width, height } = this.scale;
 
-    const bg = this.add.image(width / 2, height / 2, "bg_logo");
-    this.scaleToCover(bg, width, height);
-    bg.setAlpha(0.75);
+    const bg = this.add.image(width / 2, height / 2, "bg_options");
+    const bgScale = Math.max(width / bg.width, height / bg.height);
+    bg.setScale(bgScale);
+    bg.setAlpha(0.9);
 
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.25);
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.35);
 
-    const panelW = Math.round(width * 0.28);
-    const panelH = Math.round(height * 0.62);
-    const panelX = Math.round(width * 0.50);
-    const panelY = Math.round(height * 0.50);
+    const uBase = Math.min(width, height);
+    const fit = Phaser.Math.Clamp(height / (uBase * 1.05), 0.72, 1);
+    const u = uBase * fit;
+    const neon = 0x70fdc2;
 
-    const neon = 0x4fffbf;
+    const panelW = Phaser.Math.Clamp(u * 0.52, 360, 520);
+    const panelH = Phaser.Math.Clamp(u * 0.7, 420, 640);
 
-    const panel = this.add.graphics();
-    panel.lineStyle(3, neon, 0.85);
-    this.roundRectStroke(panel, panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 14);
+    const panelX = width / 2;
+    const panelY = height / 2 + u * 0.02;
 
-    const headerH = Math.round(height * 0.085);
-    const headerW = Math.round(panelW * 0.88);
-    const headerY = panelY - panelH / 2 - Math.round(height * 0.01);
+    const headerW = panelW * 0.78;
+    const headerH = u * 0.1;
 
-    const header = this.add.graphics();
-    header.lineStyle(3, neon, 0.85);
-    this.roundRectStroke(
-      header,
-      panelX - headerW / 2,
-      headerY,
-      headerW,
-      headerH,
-      10
-    );
+    const headerY = panelY - panelH / 2 - headerH * 0.75;
+    const headerBox = this.drawHudBox(panelX, headerY, headerW, headerH, neon, true);
 
-    const headerTxt = this.add
-      .text(panelX, headerY + headerH / 2, "SETTINGS", {
-        fontFamily: "monospace",
-        fontSize: `${Math.round(height * 0.055)}px`,
-        color: "#4fffbf",
+    const headerText = this.add
+      .text(panelX, headerY, "SETTINGS", {
+        fontFamily: "Pixelify Sans",
+        fontSize: `${Math.round(u * 0.07)}px`,
+        color: "#70fdc2",
       })
       .setOrigin(0.5);
-    headerTxt.setShadow(2, 2, "#0b5b47", 0, true, true);
 
-    const slotW = Math.round(panelW * 0.78);
-    const slotH = Math.round(height * 0.085);
-    const slotX = panelX;
-    const slot1Y = panelY - Math.round(panelH * 0.13);
-    const slot2Y = panelY;
+    const panelBox = this.drawHudPanel(panelX, panelY, panelW, panelH, neon);
 
-    this.drawSlot(slotX, slot1Y, slotW, slotH, "Sound Effects", neon, height);
-    this.drawSlot(slotX, slot2Y, slotW, slotH, "Music", neon, height);
+    const slotW = panelW * 0.78;
+    const slotH = u * 0.12;
 
-    const sliderW = Math.round(slotW * 0.78);
-    const sliderX = panelX - sliderW / 2;
-    const slider1Y = slot1Y + Math.round(slotH * 0.58);
-    const slider2Y = slot2Y + Math.round(slotH * 0.58);
+    const slot1Y = panelY - panelH * 0.3;
+    const slot2Y = panelY - panelH * 0.04;
 
-    this.createSlider({
-      label: "sfx",
-      x: sliderX,
-      y: slider1Y,
-      width: sliderW,
+    const slot1Box = this.drawHudBox(panelX, slot1Y, slotW, slotH, neon, false);
+    const slot2Box = this.drawHudBox(panelX, slot2Y, slotW, slotH, neon, false);
+
+    const labelSize = Math.round(u * 0.05);
+
+    const sfxLabel = this.add
+      .text(panelX, slot1Y, "SOUND EFFECTS", {
+        fontFamily: "Pixelify Sans",
+        fontSize: `${labelSize}px`,
+        color: "#EFFFF9",
+      })
+      .setOrigin(0.5);
+
+    const musicLabel = this.add
+      .text(panelX, slot2Y, "MUSIC", {
+        fontFamily: "Pixelify Sans",
+        fontSize: `${labelSize}px`,
+        color: "#EFFFF9",
+      })
+      .setOrigin(0.5);
+
+    const sliderW = slotW;
+    const slider1Y = slot1Y + slotH * 0.74;
+    const slider2Y = slot2Y + slotH * 0.74;
+
+    const slider1 = this.createHudSlider({
+      cx: panelX,
+      cy: slider1Y,
+      w: sliderW,
       initial: GameData.sfxVolume ?? 0.7,
       onChange: (v) => {
         GameData.sfxVolume = v;
@@ -138,16 +151,22 @@ export default class Options extends Phaser.Scene {
       initial: GameData.musicVolume ?? 0.6,
       onChange: (v) => {
         GameData.musicVolume = v;
+        SettingsStorage.saveMusicVolume(v);
+
+        if (this.returnMode === "menu") {
+          const engineV = MusicManager.toEngineVolume(v);
+          if (this.menuMusic) this.menuMusic.setVolume(engineV);
+          else {
+            this.menuMusic = MusicManager.start(this, Options.MENU_MUSIC_KEY, {
+              loop: true,
+              volume: engineV,
+            });
+          }
+        }
       },
     });
 
-    const backR = Math.round(height * 0.05);
-    const backCX = panelX;
-    const backCY = panelY + Math.round(panelH * 0.32);
-
-    const backG = this.add.graphics();
-    backG.lineStyle(3, neon, 0.85);
-    backG.strokeCircle(backCX, backCY, backR);
+    const backY = panelY + panelH * 0.32;
 
     const backText = this.add
       .text(panelX, backY, "BACK", {
@@ -248,7 +267,15 @@ export default class Options extends Phaser.Scene {
     g.lineTo(x + w * 0.88, y);
     g.strokePath();
 
-    this.scale.on("resize", () => this.scene.restart());
+    g.lineStyle(2, neon, 0.55);
+    g.beginPath();
+    g.moveTo(x, y + h * 0.2);
+    g.lineTo(x, y + h * 0.3);
+    g.moveTo(x + w, y + h * 0.62);
+    g.lineTo(x + w, y + h * 0.72);
+    g.strokePath();
+
+    return g;
   }
 
   private drawHudBox(cx: number, cy: number, w: number, h: number, neon: number, isHeader: boolean) {
@@ -288,16 +315,14 @@ export default class Options extends Phaser.Scene {
     base.lineTo(maxX, cfg.cy);
     base.strokePath();
 
-    const dots = this.add.graphics();
-    dots.fillStyle(neon, 0.35);
-    const step = 12;
-    for (let x = cfg.x; x <= cfg.x + cfg.width; x += step) {
-      dots.fillRect(x, cfg.y - 1, 4, 2);
-    }
+    const inner = this.add.graphics();
+    inner.lineStyle(1, neon, 0.35);
+    inner.beginPath();
+    inner.moveTo(minX, cfg.cy + 3);
+    inner.lineTo(maxX, cfg.cy + 3);
+    inner.strokePath();
 
-    const knobSize = 14;
-    const knob = this.add.rectangle(0, 0, knobSize, knobSize, 0x000000, 0.0);
-    knob.setStrokeStyle(3, neon, 0.9);
+    const knob = this.add.rectangle(0, 0, 16, 16, 0x000000, 0.25).setStrokeStyle(2, neon, 1);
 
     const setValueFromX = (x: number) => {
       const clamped = Phaser.Math.Clamp(x, minX, maxX);
@@ -332,26 +357,24 @@ export default class Options extends Phaser.Scene {
       holding = false;
     };
 
-    knob.on("drag", (_p: unknown, dragX: number) => updateFromX(dragX));
-
-    const hit = this.add.rectangle(cfg.x + cfg.width / 2, cfg.y, cfg.width, 28, 0x000000, 0.001);
-    hit.setInteractive({ useHandCursor: true }).on("pointerdown", (p: Phaser.Input.Pointer) => {
-      updateFromX(p.worldX);
+    hit.on("pointerup", stopHolding);
+    hit.on("pointerupoutside", stopHolding);
+    hit.on("pointerout", () => {
+      if (!this.input.activePointer.isDown) holding = false;
     });
 
-    cfg.onChange(Phaser.Math.Clamp(cfg.initial, 0, 1));
-  }
+    knob.on("pointerover", () => {
+      knob.setScale(1.15);
+      knob.setFillStyle(0x000000, 0.35);
+    });
 
-  private roundRectStroke(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, r: number) {
-    g.strokeRoundedRect(x, y, w, h, r);
-    g.lineStyle(2, 0x4fffbf, 0.5);
-    g.beginPath();
-    g.moveTo(x + 10, y);
-    g.lineTo(x + 26, y);
-    g.moveTo(x + w - 26, y + h);
-    g.lineTo(x + w - 10, y + h);
-    g.strokePath();
-  }
+    knob.on("pointerout", () => {
+      knob.setScale(1);
+      knob.setFillStyle(0x000000, 0.25);
+    });
+
+    knob.on("pointerdown", () => knob.setScale(1.1));
+    knob.on("pointerup", () => knob.setScale(1.15));
 
     const container = this.add.container(0, 0, [base, inner, hit, knob]);
     return { container, knob };
