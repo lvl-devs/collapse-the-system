@@ -14,6 +14,12 @@ export default class Menu extends Phaser.Scene {
 
   constructor(){ super({ key: "Menu" }); }
 
+  private playSelectSfx(): void {
+    if (localStorage.getItem("soundEffectsEnabled") === "true") {
+      this.sound.play("menuSelect");
+    }
+  }
+
   create(){
     SettingsStorage.loadVolumeSettings();
 
@@ -30,17 +36,14 @@ export default class Menu extends Phaser.Scene {
       loop: true,
       volume: GameData.sfxVolume ?? 0.7
     });
-    const { width, height } = this.scale;
-    const bgVideo = this.add.video(width / 2, height / 2, "bg-menu");
+    if (!this.scene.isActive("MenuBackdrop") && !this.scene.isSleeping("MenuBackdrop")) {
+      this.scene.launch("MenuBackdrop");
+    } else if (this.scene.isSleeping("MenuBackdrop")) {
+      this.scene.wake("MenuBackdrop");
+    }
+    this.scene.sendToBack("MenuBackdrop");
 
-    bgVideo.setOrigin(0.5);
-    bgVideo.play(true);
-    bgVideo.on("created", () => {
-      const scaleX = width / bgVideo.width;
-      const scaleY = height / bgVideo.height;
-      const scale = Math.max(scaleX, scaleY);
-      bgVideo.setScale(scale);
-    });
+    const { width, height } = this.scale;
 
     this.add
       .text(width * 0.05, height * 0.05, GameData.globals.gameTitle, {
@@ -72,8 +75,7 @@ export default class Menu extends Phaser.Scene {
         })
 
         .on("pointerdown", () => {
-          if(localStorage.getItem("soundEffectsEnabled") === "true")
-            this.sound.play("menuSelect");
+          this.playSelectSfx();
           this.selectItem(index);
         });
       this._menuItems.push(menuItem);
@@ -134,6 +136,7 @@ export default class Menu extends Phaser.Scene {
     if (item.scene === "GamePlay") {
       MusicManager.stop(this, Menu.MENU_MUSIC_KEY);
       SfxManager.stop(this, Menu.RAIN_SFX_KEY);
+      this.scene.stop("MenuBackdrop");
     }
     this.scene.start(item.scene);
   }
