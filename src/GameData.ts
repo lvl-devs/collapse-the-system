@@ -1,6 +1,5 @@
-// =============================
-// TYPE DEFINITIONS
-// =============================
+import type { DungeonThemeKey, DungeonConfig } from "./game/systems/DungeonGenerator";
+export type { DungeonThemeKey, DungeonConfig };
 
 export interface Settings {
   graphics: number;
@@ -28,6 +27,12 @@ export interface Menu {
   fontSize: number;
 }
 
+export interface DungeonSettings {
+  defaultTheme: DungeonThemeKey;
+  availableThemes: DungeonThemeKey[];
+  defaultConfig: Omit<DungeonConfig, "theme" | "seed">;
+}
+
 export interface PreloaderConfig {
   loadingTextFont: string;
   loadingTextColor: string;
@@ -40,11 +45,9 @@ export interface GameDataType {
   menu: Menu;
   preloader: PreloaderConfig;
   settings: Settings;
-
-  // optional per-channel volumes (0..1)
+  dungeon: DungeonSettings;
   sfxVolume?: number;
   musicVolume?: number;
-
   images: { name: string; path: string }[];
   tilemaps: any[];
   atlas: any[];
@@ -56,10 +59,6 @@ export interface GameDataType {
   webfonts: { key: string }[];
   bitmapfonts: any[];
 }
-
-// =============================
-// GAME DATA OBJECT
-// =============================
 
 export const GameData: GameDataType = {
 
@@ -100,12 +99,75 @@ export const GameData: GameDataType = {
     vibration: true
   },
 
+  dungeon: {
+    defaultTheme: "cyber",
+    availableThemes: ["cyber", "cave", "facility", "void"],
+    defaultConfig: {
+      width: 50,
+      height: 50,
+      tileSize: 32,
+      doorPadding: 2,
+      rooms: {
+        width: { min: 7, max: 15, onlyOdd: true },
+        height: { min: 7, max: 15, onlyOdd: true },
+        maxRooms: 12,
+        maxArea: 150,
+      },
+      placement: {
+        stairs: {
+          roomRole: "end",
+        },
+        objects: [
+          {
+            id: "chairs",
+            tileIndex: 52,
+            tileVariants: [
+              {
+                base: 52,
+                byWall: {
+                  top: 52,
+                  left: 73,
+                  right: 94,
+                  bottom: 115
+                },
+              },
+              {
+                base: 53,
+                byWall: {
+                  top: 53,
+                  left: 74,
+                  right: 95,
+                  bottom: 116 
+                },
+              },
+            ],
+            roomRoles: ["other"],
+            chancePerRoom: 0.7,
+            countPerRoom: {
+              min: 3,
+              max: 5,
+            },
+            position: {
+              mode: "wallAttached",
+              wallSides: ["top", "left", "right"],
+              avoidCenter: true,
+              paddingFromWalls: 1,
+            },
+            avoidOccupiedRooms: false,
+            avoidOccupiedTiles: true,
+          },
+        ],
+      },
+    },
+  },
+
   sfxVolume: 0.7,
   musicVolume: 0.6,
 
   images: [
     { name: "bg_logo", path: "/images/bg_logo.png" },
     { name: "title_img", path: "/images/title.png" },
+<<<<<<< HEAD
     { name: "button_1", path: "/images/1.png" },
     { name: "button_1_pressed", path: "/images/1_pressed.png" },
     { name: "button_2", path: "/images/2.png" },
@@ -130,11 +192,21 @@ export const GameData: GameDataType = {
     { name: "button_c_pressed", path: "/images/c_pressed.png" },
     { name: "button_ok", path: "/images/ok.png" },
     { name: "button_ok_pressed", path: "/images/ok_pressed.png" },
+=======
+    { name: "tileset-cyber", path: "/tilemaps/home.png" },
+    { name: "tileset-cave", path: "/tilemaps/home.png" },
+    { name: "tileset-facility", path: "/tilemaps/home.png" },
+    { name: "tileset-void", path: "/tilemaps/home.png" },
+>>>>>>> 0f8108fcce6758b581cb871e77f4cfb1e4ff172d
   ],
 
   tilemaps: [],
   atlas: [],
-  spritesheets: [],
+  spritesheets: [
+    { name: "hacker", path: "/spritesheets/hacker.png", width: 32, height: 45, frames: 12 },
+    { name: "scientist", path: "/spritesheets/scientist.png", width: 32, height: 45, frames: 12 },
+    { name: "policeman", path: "/spritesheets/policeman.png", width: 32, height: 45, frames: 12 }
+  ],
   sounds: [
     { name: "menu-theme", paths: ["/music/menu.mp3"] },
     { name: "rain-sfx", paths: ["/sounds/rain.mp3"] }

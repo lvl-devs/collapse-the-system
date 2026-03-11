@@ -1,15 +1,15 @@
 import "phaser";
 import { GameData } from "./GameData";
 
-// scenes
 import Preloader from "./game/scenes/Preloader";
 import Boot from "./game/scenes/Boot";
 import Menu from "./game/scenes/Menu";
+import MenuBackdrop from "./game/scenes/MenuBackdrop";
 import GamePlay from "./game/scenes/GamePlay";
 import Options from "./game/scenes/Options";
+import Credits from "./game/scenes/Credits";
 import PauseMenu from "./game/scenes/PauseMenu";
 import MiniGame from "./game/scenes/MiniGame1";
-
 
 window.addEventListener("load", () => {
   const config: Phaser.Types.Core.GameConfig = {
@@ -20,23 +20,27 @@ window.addEventListener("load", () => {
     parent: "app",
     scale: {
       mode: Phaser.Scale.FIT,
-      // width: GameData.globals.gameWidth,
-      // height: GameData.globals.gameHeight,
       width: window.innerWidth,
       height: window.innerHeight,
     },
     scene: [
       Preloader,
       Boot,
+      MenuBackdrop,
       Menu,
       GamePlay,
       Options,
+<<<<<<< HEAD
       PauseMenu,
       MiniGame
+=======
+      Credits,
+      PauseMenu,
+>>>>>>> 0f8108fcce6758b581cb871e77f4cfb1e4ff172d
     ],
     physics: {
       default: "arcade",
-      arcade: { debug: false, }
+      arcade: { debug: false }
     },
     input: {
       activePointers: 2,
@@ -47,9 +51,9 @@ window.addEventListener("load", () => {
       antialias: false,
     },
     loader: {
-      baseURL: '/assets/',
-    },
+      baseURL: "/assets/"
+    }
   };
 
-  new Phaser.Game(config); // game initializing according to configs
+  new Phaser.Game(config);
 });
