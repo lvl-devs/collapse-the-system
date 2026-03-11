@@ -30,13 +30,8 @@ window.addEventListener("load", () => {
       Menu,
       GamePlay,
       Options,
-<<<<<<< HEAD
       PauseMenu,
       MiniGame
-=======
-      Credits,
-      PauseMenu,
->>>>>>> 0f8108fcce6758b581cb871e77f4cfb1e4ff172d
     ],
     physics: {
       default: "arcade",
