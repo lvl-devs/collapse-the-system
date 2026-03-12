@@ -76,6 +76,15 @@ export default class Minigame1 extends Phaser.Scene {
   private draggingWire?: WireState;
   private draggingPointerId?: number;
 
+  private readonly externalBoxKey = "minigame1-external-box";
+
+  preload() {
+  this.load.image(
+    this.externalBoxKey,
+    "../assets/images/minigame1/minigame1-external-box.png"
+  );
+}
+
   constructor() {
     super("Minigame1");
   }
@@ -91,7 +100,7 @@ export default class Minigame1 extends Phaser.Scene {
     this.wires = [];
     this.sockets = [];
 
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82);
+    //this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.82);
     this.computeResponsiveLayout(width, height);
     this.drawTablet();
     this.createCloseButton();
@@ -126,10 +135,10 @@ export default class Minigame1 extends Phaser.Scene {
 
     this.boardX = width / 2;
     this.boardY = height / 2;
-    this.screenW = this.boardW * 0.88;
-    this.screenH = this.boardH * 0.74;
+    this.screenW = this.boardW * 0.875;
+    this.screenH = this.boardH * 0.73;
     this.screenX = this.boardX;
-    this.screenY = this.boardY + this.boardH * 0.02;
+    this.screenY = this.boardY + this.boardH * 0.015;
     this.uiScale = Phaser.Math.Clamp(this.boardW / 1200, 0.72, 1.05);
   }
 
@@ -141,23 +150,24 @@ export default class Minigame1 extends Phaser.Scene {
   }
 
   private createHeaderTexts() {
-    const titleSize = Math.round(this.s(28));
+    const titleSize = Math.round(this.s(34));
 
     this.add
       .text(
         this.boardX,
-        this.boardY - this.boardH / 2 - this.s(18),
+        this.boardY - this.boardH / 2 - this.s(-80),
         "CROSS-WIRE BREACH",
         {
           fontFamily: "Pixelify Sans",
           fontSize: `${titleSize}px`,
-          color: "#61ff7c",
+          color: "#ffffff",
           fontStyle: "bold",
-          stroke: "#0e2f12",
+/*           stroke: "#0e2f12",
           strokeThickness: Math.max(3, Math.round(this.s(5))),
-        }
+ */        }
       )
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setDepth(200);
 
     const hintY = this.screenY - this.screenH / 2 + this.screenH * 0.095;
     const hintBg = this.add
@@ -221,93 +231,103 @@ export default class Minigame1 extends Phaser.Scene {
   }
 
   private createCloseButton() {
-    const closeX = this.boardX + this.boardW / 2 - this.s(38);
-    const closeY = this.boardY - this.boardH / 2 + this.s(38);
+  const closeX = this.boardX + this.boardW / 2 - this.s(42);
+  const closeY = this.boardY - this.boardH / 2 + this.s(42);
 
-    const closeBg = this.add
-      .circle(closeX, closeY, this.s(14), 0x1a2230, 0.95)
-      .setStrokeStyle(2, 0x8df6ff, 0.45)
-      .setInteractive({ useHandCursor: true });
+  const closeText = this.add
+  .text(closeX, closeY, "X", {
+    fontFamily: "Pixelify Sans",
+    fontSize: `${Math.round(this.s(42))}px`,
+    color: "#f2fbff",
+    stroke: "#1a1a1a",
+    strokeThickness: 2
+  })
+  .setOrigin(0.5)
+  .setInteractive({ useHandCursor: true })
+  .setDepth(200);
 
-    const closeText = this.add
-      .text(closeX, closeY, "X", {
-        fontFamily: "Pixelify Sans",
-        fontSize: `${Math.max(18, this.s(20))}px`,
-        color: "#d7faff",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+  closeText.on("pointerover", () => {
+    closeText.setScale(1.1);
+    closeText.setColor("#ffffff");
+  });
 
-    const over  = () => { closeBg.setFillStyle(0x243247, 1); closeText.setScale(1.08); };
-    const out   = () => { closeBg.setFillStyle(0x1a2230, 0.95); closeText.setScale(1); };
-    const close = () => { this.scene.stop(); this.scene.resume("GamePlay"); };
+  closeText.on("pointerout", () => {
+    closeText.setScale(1);
+    closeText.setColor("#e8f7ff");
+  });
 
-    for (const obj of [closeBg, closeText]) {
-      obj.on("pointerover", over);
-      obj.on("pointerout", out);
-      obj.on("pointerdown", close);
-    }
-  }
+  closeText.on("pointerdown", () => {
+    this.scene.stop();
+    this.scene.resume("GamePlay");
+  });
+}
 
   // ─── Socket + Wire creation ─────────────────────────────────────────────────
 
   private createSocketsAndWires() {
-    // Layout anchors
-    const leftX   = this.screenX - this.screenW / 2 + this.screenW * 0.15;
-    const rightX  = this.screenX + this.screenW / 2 - this.screenW * 0.15;
-    const topY    = this.screenY - this.screenH / 2 + this.screenH * 0.20;
-    const bottomY = this.screenY + this.screenH / 2 - this.screenH * 0.11;
+  const halfW = this.screenW / 2;
+  const halfH = this.screenH / 2;
 
-    const offsetY = this.screenH * 0.03;
-    const vPos = [
-  this.screenY - this.screenH * 0.22 + offsetY,
-  this.screenY - this.screenH * 0.07 + offsetY,
-  this.screenY + this.screenH * 0.07 + offsetY,
-  this.screenY + this.screenH * 0.22 + offsetY
-];
+  // margine identico da tutti i bordi interni del monitor
+  const edgeMargin = this.s(120);
 
-const hPos = [
-  this.screenX - this.screenW * 0.16,
-  this.screenX - this.screenW * 0.05,
-  this.screenX + this.screenW * 0.05,
-  this.screenX + this.screenW * 0.16
-];
+  // coordinate dei 4 lati, tutte con la stessa distanza dal bordo
+  const leftX = this.screenX - halfW + edgeMargin;
+  const rightX = this.screenX + halfW - edgeMargin;
+  const topY = this.screenY - halfH + edgeMargin - this.s(26);
+  const bottomY = this.screenY + halfH - edgeMargin + this.s(26);
 
-    const colors = Phaser.Utils.Array.Shuffle([...WIRE_COLORS]) as WireColor[];
-    const groupA = colors.slice(0, 4); // left ↔ right
-    const groupB = colors.slice(4, 8); // top  ↔ bottom
+  // distribuzione simmetrica dei 4 punti per lato
+  const sideSpreadY = this.screenH * 0.13;
+  const sideSpreadX = this.screenW * 0.13;
 
-    // 50% of destination sockets are revealed → 4 revealed, 4 hidden
-    const revealMask = Phaser.Utils.Array.Shuffle([
-      ...Array(4).fill(true),
-      ...Array(4).fill(false),
-    ]) as boolean[];
+  const vPos = [
+    this.screenY - sideSpreadY * 1.5,
+    this.screenY - sideSpreadY * 0.5,
+    this.screenY + sideSpreadY * 0.5,
+    this.screenY + sideSpreadY * 1.5,
+  ];
 
-    const slots = () => Phaser.Utils.Array.Shuffle([0, 1, 2, 3]) as number[];
-    const leftSlots   = slots();
-    const rightSlots  = slots();
-    const topSlots    = slots();
-    const bottomSlots = slots();
+  const hPos = [
+    this.screenX - sideSpreadX * 1.5,
+    this.screenX - sideSpreadX * 0.5,
+    this.screenX + sideSpreadX * 0.5,
+    this.screenX + sideSpreadX * 1.5,
+  ];
 
-    // Group A: left ↔ right
-    for (let i = 0; i < groupA.length; i++) {
-      const color = groupA[i];
-      const sA = this.createSocket(leftX,  vPos[leftSlots[i]],  color, "left",  true);
-      const sB = this.createSocket(rightX, vPos[rightSlots[i]], color, "right", revealMask[i]);
-      this.sockets.push(sA, sB);
-      this.createWire(color, sA, sB);
-    }
+  const colors = Phaser.Utils.Array.Shuffle([...WIRE_COLORS]) as WireColor[];
+  const groupA = colors.slice(0, 4); // left ↔ right
+  const groupB = colors.slice(4, 8); // top  ↔ bottom
 
-    // Group B: top ↔ bottom
-    for (let i = 0; i < groupB.length; i++) {
-      const color = groupB[i];
-      const sA = this.createSocket(hPos[topSlots[i]],    topY,    color, "top",    true);
-      const sB = this.createSocket(hPos[bottomSlots[i]], bottomY, color, "bottom", revealMask[i + 4]);
-      this.sockets.push(sA, sB);
-      this.createWire(color, sA, sB);
-    }
+  const revealMask = Phaser.Utils.Array.Shuffle([
+    ...Array(4).fill(true),
+    ...Array(4).fill(false),
+  ]) as boolean[];
+
+  const slots = () => Phaser.Utils.Array.Shuffle([0, 1, 2, 3]) as number[];
+  const leftSlots = slots();
+  const rightSlots = slots();
+  const topSlots = slots();
+  const bottomSlots = slots();
+
+  // left ↔ right
+  for (let i = 0; i < groupA.length; i++) {
+    const color = groupA[i];
+    const sA = this.createSocket(leftX, vPos[leftSlots[i]], color, "left", true);
+    const sB = this.createSocket(rightX, vPos[rightSlots[i]], color, "right", revealMask[i]);
+    this.sockets.push(sA, sB);
+    this.createWire(color, sA, sB);
   }
+
+  // top ↔ bottom
+  for (let i = 0; i < groupB.length; i++) {
+    const color = groupB[i];
+    const sA = this.createSocket(hPos[topSlots[i]], topY, color, "top", true);
+    const sB = this.createSocket(hPos[bottomSlots[i]], bottomY, color, "bottom", revealMask[i + 4]);
+    this.sockets.push(sA, sB);
+    this.createWire(color, sA, sB);
+  }
+}
 
   /** Returns an array of `count` values starting at `origin` spaced by `step`. */
   private linspace(origin: number, step: number, count: number): number[] {
@@ -895,82 +915,9 @@ const hPos = [
   // ─── Tablet drawing ─────────────────────────────────────────────────────────
 
   private drawTablet() {
-    const g = this.add.graphics();
-    const x = this.boardX - this.boardW / 2;
-    const y = this.boardY - this.boardH / 2;
-
-    // Body layers
-    g.fillStyle(0x3e4454, 1);
-    g.fillRoundedRect(x, y, this.boardW, this.boardH, this.s(24));
-    g.fillStyle(0x555e70, 1);
-    g.fillRoundedRect(x + this.s(8), y + this.s(8), this.boardW - this.s(16), this.boardH - this.s(16), this.s(20));
-    g.lineStyle(Math.max(3, this.s(5)), 0x1c212b, 1);
-    g.strokeRoundedRect(x + this.s(4), y + this.s(4), this.boardW - this.s(8), this.boardH - this.s(8), this.s(22));
-    g.lineStyle(2, 0xa8b3bf, 0.22);
-    g.strokeRoundedRect(x + this.s(10), y + this.s(10), this.boardW - this.s(20), this.boardH - this.s(20), this.s(18));
-
-    // Top slot bar
-    const slotCount = 6;
-    const slotH = this.s(20);
-    const slotGap = this.s(14);
-    const slotW = (this.boardW - this.s(50) - slotGap * (slotCount - 1)) / slotCount;
-    for (let i = 0; i < slotCount; i++) {
-      const sx = x + this.s(25) + i * (slotW + slotGap);
-      g.fillStyle(i % 2 === 0 ? 0x676f7d : 0x5f6876, 1);
-      g.fillRoundedRect(sx, y + this.s(16), slotW, slotH, this.s(4));
-      g.lineStyle(1, 0x444c59, 1);
-      g.strokeRoundedRect(sx, y + this.s(16), slotW, slotH, this.s(4));
-    }
-
-    // Screen bezel
-    const ox = this.screenX - this.screenW / 2 - this.s(18);
-    const oy = this.screenY - this.screenH / 2 - this.s(18);
-    const ow = this.screenW + this.s(36);
-    const oh = this.screenH + this.s(36);
-    g.fillStyle(0x7e8791, 1);
-    g.fillRoundedRect(ox, oy, ow, oh, this.s(20));
-    g.lineStyle(Math.max(2, this.s(4)), 0x4a525b, 1);
-    g.strokeRoundedRect(ox, oy, ow, oh, this.s(20));
-
-    // Screen
-    const sx = this.screenX - this.screenW / 2;
-    const sy = this.screenY - this.screenH / 2;
-    g.fillStyle(0x1d2430, 1);
-    g.fillRoundedRect(sx, sy, this.screenW, this.screenH, this.s(12));
-    g.lineStyle(Math.max(2, this.s(4)), 0x0e131b, 0.85);
-    g.strokeRoundedRect(sx + 1, sy + 1, this.screenW - 2, this.screenH - 2, this.s(12));
-    g.lineStyle(Math.max(2, this.s(3)), 0x39f4ff, 0.58);
-    g.strokeRoundedRect(sx, sy, this.screenW, this.screenH, this.s(12));
-    g.lineStyle(1, 0x9dfdff, 0.45);
-    g.strokeRoundedRect(sx + this.s(6), sy + this.s(6), this.screenW - this.s(12), this.screenH - this.s(12), this.s(9));
-
-    // Side grips
-    g.fillStyle(0x98a2ad, 1);
-    g.fillRoundedRect(x + this.s(10), this.boardY - this.boardH * 0.125, this.s(16), this.boardH * 0.25, this.s(8));
-    g.fillRoundedRect(x + this.boardW - this.s(26), this.boardY - this.boardH * 0.125, this.s(16), this.boardH * 0.25, this.s(8));
-
-    // Corner screws
-    const sOff = this.s(22);
-    ([
-      [x + sOff,              y + sOff],
-      [x + this.boardW - sOff, y + sOff],
-      [x + sOff,              y + this.boardH - sOff],
-      [x + this.boardW - sOff, y + this.boardH - sOff],
-    ] as [number, number][]).forEach(([cx, cy]) => {
-      g.fillStyle(0x262b33, 1); g.fillCircle(cx, cy, this.s(5));
-      g.lineStyle(1, 0x7f8893, 0.35); g.strokeCircle(cx, cy, this.s(5));
-    });
-
-    // Corner decorations
-    const deco = this.add.graphics();
-    deco.lineStyle(2, 0x3af7ff, 0.75);
-    [[0.03, 0.03, 0.025, 0.02], [0.03, 0.055, 0.012, 0.02]].forEach(([rx, ry, rw, rh]) =>
-      deco.strokeRect(sx + this.screenW * rx, sy + this.screenH * ry, this.screenW * rw, this.screenH * rh)
-    );
-    [[1 - 0.03 - 0.025, 0.03, 0.025, 0.02], [1 - 0.03 - 0.012, 0.055, 0.012, 0.02]].forEach(([rx, ry, rw, rh]) =>
-      deco.strokeRect(sx + this.screenW * rx, sy + this.screenH * ry, this.screenW * rw, this.screenH * rh)
-    );
-
-    // Intentionally left clean: no central corridor pattern behind sockets/wires.
-  }
+  this.add
+    .image(this.boardX, this.boardY, this.externalBoxKey)
+    .setDisplaySize(this.boardW, this.boardH)
+    .setDepth(0);
+}
 }
