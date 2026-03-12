@@ -24,7 +24,11 @@ export default class GamePlay extends Phaser.Scene {
   private tileOverlayObjects: Phaser.GameObjects.GameObject[] = [];
   private hoverInfoPanel?: Phaser.GameObjects.Text;
   private escPauseKey?: Phaser.Input.Keyboard.Key;
+  private collisionDebugKey?: Phaser.Input.Keyboard.Key;
+  private tileOverlayToggleKey?: Phaser.Input.Keyboard.Key;
   private currentLevelMusicKey?: string;
+  private pausedSfxDuringPause: Phaser.Sound.BaseSound[] = [];
+  private isAudioPausedForMenu = false;
 
   constructor() {
     super({ key: "GamePlay" });
@@ -35,11 +39,13 @@ export default class GamePlay extends Phaser.Scene {
   }
 
   create() {
+    this.input.keyboard?.resetKeys();
+
     this.currentLevel = LevelStorage.getCurrentLevel();
     this.hasPlayerReachedStairs = false;
     this.startLevelMusic(this.currentLevel);
 
-    this.events.on(Phaser.Scenes.Events.PAUSE, this.stopCurrentLevelMusic, this);
+    this.events.on(Phaser.Scenes.Events.PAUSE, this.pauseCurrentLevelAudio, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.resumeCurrentLevelMusic, this);
 
     const cfg = GameData.dungeon.defaultConfig;
@@ -110,9 +116,69 @@ export default class GamePlay extends Phaser.Scene {
     this.cameras.main.startFollow(this.playerController.sprite, true, 0.1, 0.1);
 
     this.escPauseKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.collisionDebugKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    this.tileOverlayToggleKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.I);
     this.escPauseKey?.on("down", this.openPauseMenu, this);
 
-    this.input.keyboard!.on("keydown-C", () => {
+    this.add
+      .text(16, 16, `Level: ${this.currentLevel}\nESC -> Menu`, {
+        fontFamily: GameData.globals.defaultFont.key,
+        fontSize:   "14px",
+        color:      "#aaaacc",
+        backgroundColor: "#00000088",
+        padding: { x: 8, y: 4 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    this.add
+      .text(16, 48, "C -> collision debug  |  I -> tile indices", {
+        fontFamily: GameData.globals.defaultFont.key,
+        fontSize:   "11px",
+        color:      "#666688",
+        backgroundColor: "#00000066",
+        padding: { x: 6, y: 3 },
+      })
+      .setScrollFactor(0)
+      .setDepth(100);
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.events.off(Phaser.Scenes.Events.PAUSE, this.pauseCurrentLevelAudio, this);
+      this.events.off(Phaser.Scenes.Events.RESUME, this.resumeCurrentLevelMusic, this);
+      this.escPauseKey?.off("down", this.openPauseMenu, this);
+      this.escPauseKey = undefined;
+      this.collisionDebugKey = undefined;
+      this.tileOverlayToggleKey = undefined;
+      this.tileOverlayObjects.forEach(o => o.destroy());
+      this.tileOverlayObjects = [];
+      this.hoverInfoPanel?.destroy();
+      this.hoverInfoPanel = undefined;
+      this.input.off("pointermove", this.onTileHover, this);
+      this.input.off("pointerdown", this.onTileCopy, this);
+    });
+
+    console.log(
+      `[GamePlay] Level ${this.currentLevel} -- ${map.width}x${map.height} tiles` +
+      ` -- ${this.dungeonResult.dungeon.rooms.length} rooms` +
+      ` -- theme: ${GameData.dungeon.defaultTheme}`
+    );
+  }
+
+  update() {
+    if (this.hasPlayerReachedStairs) return;
+
+    if (this.collisionDebugKey != null && Phaser.Input.Keyboard.JustDown(this.collisionDebugKey)) {
+      this.toggleCollisionDebug();
+    }
+
+    if (this.tileOverlayToggleKey != null && Phaser.Input.Keyboard.JustDown(this.tileOverlayToggleKey)) {
+      this.toggleTileIndexOverlay();
+    }
+
+    this.playerController.update();
+  }
+
+  private toggleCollisionDebug(): void {
       this.debugMode = !this.debugMode;
       const { groundLayer, stuffLayer } = this.dungeonResult;
 
@@ -138,32 +204,9 @@ export default class GamePlay extends Phaser.Scene {
         this.tileDebugGraphics?.destroy();
         this.tileDebugGraphics = undefined;
       }
-    });
+  }
 
-    this.add
-      .text(16, 16, `Level: ${this.currentLevel}\nESC -> Menu`, {
-        fontFamily: GameData.globals.defaultFont.key,
-        fontSize:   "14px",
-        color:      "#aaaacc",
-        backgroundColor: "#00000088",
-        padding: { x: 8, y: 4 },
-      })
-      .setScrollFactor(0)
-      .setDepth(100);
-
-    this.add
-      .text(16, 48, "C -> collision debug  |  I -> tile indices", {
-        fontFamily: GameData.globals.defaultFont.key,
-        fontSize:   "11px",
-        color:      "#666688",
-        backgroundColor: "#00000066",
-        padding: { x: 6, y: 3 },
-      })
-      .setScrollFactor(0)
-      .setDepth(100);
-
-    // I -> tile index overlay
-    this.input.keyboard!.on("keydown-I", () => {
+  private toggleTileIndexOverlay(): void {
       if (this.tileOverlayObjects.length > 0) {
         this.tileOverlayObjects.forEach(o => o.destroy());
         this.tileOverlayObjects = [];
@@ -238,32 +281,6 @@ export default class GamePlay extends Phaser.Scene {
 
       this.input.on("pointermove", this.onTileHover, this);
       this.input.on("pointerdown", this.onTileCopy, this);
-    });
-
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.events.off(Phaser.Scenes.Events.PAUSE, this.stopCurrentLevelMusic, this);
-      this.events.off(Phaser.Scenes.Events.RESUME, this.resumeCurrentLevelMusic, this);
-      this.escPauseKey?.off("down", this.openPauseMenu, this);
-      this.escPauseKey = undefined;
-      this.tileOverlayObjects.forEach(o => o.destroy());
-      this.tileOverlayObjects = [];
-      this.hoverInfoPanel?.destroy();
-      this.hoverInfoPanel = undefined;
-      this.input.off("pointermove", this.onTileHover, this);
-      this.input.off("pointerdown", this.onTileCopy, this);
-    });
-
-    console.log(
-      `[GamePlay] Level ${this.currentLevel} -- ${map.width}x${map.height} tiles` +
-      ` -- ${this.dungeonResult.dungeon.rooms.length} rooms` +
-      ` -- theme: ${GameData.dungeon.defaultTheme}`
-    );
-  }
-
-  update() {
-    if (this.hasPlayerReachedStairs) return;
-
-    this.playerController.update();
   }
 
   private onTileHover(pointer: Phaser.Input.Pointer): void {
@@ -311,7 +328,7 @@ export default class GamePlay extends Phaser.Scene {
     if (this.scene.isActive("PauseMenu")) {
       return;
     }
-    this.stopCurrentLevelMusic();
+    this.pauseCurrentLevelAudio();
     this.scene.launch("PauseMenu", { parentSceneKey: this.scene.key });
     this.scene.pause();
   }
@@ -332,22 +349,65 @@ export default class GamePlay extends Phaser.Scene {
     });
   }
 
-  private stopCurrentLevelMusic(): void {
-    if (!this.currentLevelMusicKey) {
+  private pauseCurrentLevelAudio(): void {
+    if (this.isAudioPausedForMenu) {
       return;
     }
-    MusicManager.stop(this, this.currentLevelMusicKey);
+
+    this.isAudioPausedForMenu = true;
+
+    if (!this.currentLevelMusicKey) {
+      this.pauseActiveSfx();
+      return;
+    }
+
+    MusicManager.pause(this, this.currentLevelMusicKey);
+    this.pauseActiveSfx();
   }
 
   private resumeCurrentLevelMusic(): void {
-    if (!this.currentLevelMusicKey) {
-      this.startLevelMusic(this.currentLevel);
+    if (!this.isAudioPausedForMenu) {
       return;
     }
 
-    MusicManager.startForScene(this, this.currentLevelMusicKey, {
-      loop: true,
-      volume: MusicManager.toEngineVolume(GameData.musicVolume ?? 0.6),
+    this.isAudioPausedForMenu = false;
+
+    if (!this.currentLevelMusicKey) {
+      this.startLevelMusic(this.currentLevel);
+    } else {
+      MusicManager.resume(this, this.currentLevelMusicKey, {
+        loop: true,
+        volume: MusicManager.toEngineVolume(GameData.musicVolume ?? 0.6),
+      });
+    }
+
+    this.resumePausedSfx();
+  }
+
+  private pauseActiveSfx(): void {
+    this.pausedSfxDuringPause = [];
+    const sounds = ((this.sound as unknown as { sounds?: Phaser.Sound.BaseSound[] }).sounds ?? []);
+
+    sounds.forEach((sound) => {
+      const soundAny = sound as any;
+      const key = soundAny.key as string | undefined;
+      if (key != null && key === this.currentLevelMusicKey) {
+        return;
+      }
+      if (soundAny.isPlaying) {
+        sound.pause();
+        this.pausedSfxDuringPause.push(sound);
+      }
     });
+  }
+
+  private resumePausedSfx(): void {
+    this.pausedSfxDuringPause.forEach((sound) => {
+      const soundAny = sound as any;
+      if (soundAny.isPaused) {
+        sound.resume();
+      }
+    });
+    this.pausedSfxDuringPause = [];
   }
 }
