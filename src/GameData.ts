@@ -167,6 +167,7 @@ export const GameData: GameDataType = {
   images: [
     { name: "bg_logo", path: "/images/bg_logo.png" },
     { name: "title_img", path: "/images/title.png" },
+    { name: "tastierino", path: "/images/Tastierino.png" },
     { name: "button_1", path: "/images/1.png" },
     { name: "button_1_pressed", path: "/images/1_pressed.png" },
     { name: "button_2", path: "/images/2.png" },
@@ -191,6 +192,11 @@ export const GameData: GameDataType = {
     { name: "button_c_pressed", path: "/images/c_pressed.png" },
     { name: "button_ok", path: "/images/ok.png" },
     { name: "button_ok_pressed", path: "/images/ok_pressed.png" },
+    { name: "tileset-cyber", path: "/tilemaps/home.png" },
+    { name: "tileset-cave", path: "/tilemaps/home.png" },
+    { name: "tileset-facility", path: "/tilemaps/home.png" },
+    { name: "tileset-void", path: "/tilemaps/home.png" },
+
   ],
 
   tilemaps: [],

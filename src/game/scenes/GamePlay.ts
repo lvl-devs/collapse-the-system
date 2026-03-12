@@ -50,7 +50,7 @@ export default class GamePlay extends Phaser.Scene {
     const onEPress = () => {
       console.log("[GamePlay] Opening MiniGame");
 
-      this.scene.start("MiniGame"); // cambia scena completamente
+      this.scene.start("MiniGame6"); // cambia scena completamente
     };
 
 
