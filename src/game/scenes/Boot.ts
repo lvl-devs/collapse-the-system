@@ -17,9 +17,9 @@ export default class Boot extends Phaser.Scene {
 
   create(){
     this._loadingText.setText(GameData.preloader.loadingTextComplete);
-    this.input.keyboard!.on("keydown", () => {
+    this.input.keyboard!.once("keydown", () => {
         this.scene.stop(this);
-        this.scene.start("Minigame2");
+        this.scene.start("Minigame1");
     });
   }
 
