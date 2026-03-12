@@ -141,7 +141,7 @@ export default class GamePlay extends Phaser.Scene {
       .setDepth(100);
 
     this.add
-      .text(16, 48, "C -> collision debug  |  D -> tile indices", {
+      .text(16, 48, "C -> collision debug  |  I -> tile indices", {
         fontFamily: GameData.globals.defaultFont.key,
         fontSize:   "11px",
         color:      "#666688",
@@ -151,8 +151,8 @@ export default class GamePlay extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100);
 
-    // D -> tile index overlay
-    this.input.keyboard!.on("keydown-D", () => {
+    // I -> tile index overlay
+    this.input.keyboard!.on("keydown-I", () => {
       if (this.tileOverlayObjects.length > 0) {
         this.tileOverlayObjects.forEach(o => o.destroy());
         this.tileOverlayObjects = [];
