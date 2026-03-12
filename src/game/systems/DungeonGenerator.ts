@@ -219,61 +219,100 @@ export class DungeonGenerator {
       }
     });
 
-    // Pass 2a-fix: when the bottom of a LEFT door (210) is directly right of a RIGHT door bottom (150),
-    // replace 210 with 148 to match the correct visual junction.
-    // Also: when a BOTTOM door frame (148) is directly right of a RIGHT door frame (170),
-    // replace 148 with 210 to match the correct visual junction.
+    // Pass 2a-fix: junction corrections using full 8-neighbor context.
     for (let ty = 0; ty < dungeon.height; ty++) {
       for (let tx = 0; tx < dungeon.width; tx++) {
         const t = groundLayer.getTileAt(tx, ty);
-        if (t && t.index === 210) {
-          const left = groundLayer.getTileAt(tx - 1, ty);
-          if (left && left.index === 150) {
+        if (!t || t.index < 0) continue;
+
+        const above     = groundLayer.getTileAt(tx,     ty - 1);
+        const below     = groundLayer.getTileAt(tx,     ty + 1);
+        const left      = groundLayer.getTileAt(tx - 1, ty);
+        const right     = groundLayer.getTileAt(tx + 1, ty);
+        const aboveLeft  = groundLayer.getTileAt(tx - 1, ty - 1);
+        const aboveRight = groundLayer.getTileAt(tx + 1, ty - 1);
+        const belowLeft  = groundLayer.getTileAt(tx - 1, ty + 1);
+        const belowRight = groundLayer.getTileAt(tx + 1, ty + 1);
+
+        const li = left?.index  ?? -1;
+        const ri = right?.index ?? -1;
+        const ai = above?.index ?? -1;
+        const bi = below?.index ?? -1;
+        const ali = aboveLeft?.index  ?? -1;
+        const ari = aboveRight?.index ?? -1;
+        const bli = belowLeft?.index  ?? -1;
+        const bri = belowRight?.index ?? -1;
+
+        if (t.index === 210) {
+          if (ai === 42 && li === 42 && ri === 42 && bi === 170 && bli === 150) {
+            groundLayer.putTileAt(42, tx, ty);
+          } else if (li === 150) {
             groundLayer.putTileAt(148, tx, ty);
+          } else if (li === 170) {
+            groundLayer.putTileAt(170, tx, ty);
           }
-        } else if (t && t.index === 148) {
-          const left = groundLayer.getTileAt(tx - 1, ty);
-          const right = groundLayer.getTileAt(tx + 1, ty);
-          if (left && left.index === 170) {
+
+        } else if (t.index === 148) {
+          if (li === 150 || li === 170) {
+            // spurio: due porte adiacenti o parete normale a sinistra → parete inferiore
+            groundLayer.putTileAt(170, tx, ty);
+          } else if (li === 189) {
             groundLayer.putTileAt(210, tx, ty);
-          } else if (left && left.index === 189) {
-            groundLayer.putTileAt(210, tx, ty);
-          } else if (right && right.index === 73) {
+          } else if (ri === 73) {
             groundLayer.putTileAt(212, tx, ty);
             groundLayer.putTileAt(194, tx + 1, ty);
           }
-        } else if (t && t.index === 170) {
-          const below = groundLayer.getTileAt(tx, ty + 1);
-          const right = groundLayer.getTileAt(tx + 1, ty);
-          if (right && right.index === 210) {
+
+        } else if (t.index === 170) {
+          if (ri === 210) {
             groundLayer.putTileAt(192, tx, ty);
-          } else if (below && (below.index === 2 || below.index === 3 || below.index === 4)) {
+          } else if (ai === 130 && ri === 86) {
+            // parete laterale sopra e cap sotto → frame porta destro superiore
+            groundLayer.putTileAt(108, tx, ty);
+          } else if (bi === 2 || bi === 3 || bi === 4) {
             groundLayer.putTileAt(189, tx, ty);
+          } else if (li === 42 && bi === 171) {
+            groundLayer.putTileAt(150, tx, ty);
+          } else if (bi === 130 && bri === 126) {
+            // passaggio tra stanze: parete destra (130) sotto, parete sinistra (126) sotto-destra → frame destro porta
+            groundLayer.putTileAt(150, tx, ty);
+          } else if (bi === 126 && bli === 130) {
+            // passaggio tra stanze: parete sinistra (126) sotto, parete destra (130) sotto-sinistra → frame sinistro porta
+            groundLayer.putTileAt(148, tx, ty);
           }
-        } else if (t && t.index === 150) {
-          const right = groundLayer.getTileAt(tx + 1, ty);
-          if (right && right.index === 148) {
-            // Frame destro di una porta (150) direttamente adiacente al frame sinistro di un'altra (148):
-            // il 150 è spurio, sostituire con parete inferiore normale.
+
+        } else if (t.index === 150) {
+          if (ai === 130 && (ri === 86 || ri === 87) && (bi === 2 || bi === 3 || bi === 4)) {
+            groundLayer.putTileAt(108, tx, ty);
+          } else if (ri === 148 || ri === 210) {
+            // frame destro spurio adiacente al frame sinistro di un'altra porta
             groundLayer.putTileAt(170, tx, ty);
-          } else if (right && right.index === 189) {
+          } else if (ri === 189) {
             groundLayer.putTileAt(212, tx, ty);
-          } else if (right && right.index === 170) {
-            const belowRight = groundLayer.getTileAt(tx + 1, ty + 1);
-            if (belowRight && (belowRight.index === 2 || belowRight.index === 3 || belowRight.index === 4)) {
+          } else if (ri === 170) {
+            if (bri === 2 || bri === 3 || bri === 4) {
               groundLayer.putTileAt(212, tx, ty);
             }
           }
-        } else if (t && t.index === 171) {
-          const left = groundLayer.getTileAt(tx - 1, ty);
-          if (left && left.index === 189) {
+
+        } else if (t.index === 169) {
+          if (ri === 189 || (ri === 170 && (bri === 2 || bri === 3 || bri === 4))) {
+            groundLayer.putTileAt(214, tx, ty);
+          }
+
+        } else if (t.index === 171) {
+          if (li === 189) {
             groundLayer.putTileAt(194, tx, ty);
           }
-        } else if (t && t.index === 73) {
-          const left = groundLayer.getTileAt(tx - 1, ty);
-          if (left && left.index === 148) {
+
+        } else if (t.index === 73) {
+          if (li === 148) {
             groundLayer.putTileAt(212, tx - 1, ty);
             groundLayer.putTileAt(194, tx, ty);
+          }
+        } else if (t.index === 42) {
+          if (ai === 130 && bi === 150) {
+            groundLayer.putTileAt(130, tx, ty);
           }
         }
       }

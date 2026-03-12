@@ -276,9 +276,10 @@ export default class GamePlay extends Phaser.Scene {
 
     this.hoverInfoPanel.setText([
       `grid (${tileX}, ${tileY})   stuff: [${sIdx}]`,
-      `${cell(-1,-1)} ${cell(0,-1)} ${cell(1,-1)}`,
-      `${cell(-1, 0)} ${cell(0, 0, true)} ${cell(1, 0)}`,
-      `${cell(-1, 1)} ${cell(0, 1)} ${cell(1, 1)}`,
+      `${cell(-1,-1)} ${cell(0,-1)} ${cell(1,-1)} ${cell(2,-1)}`,
+      `${cell(-1, 0)} ${cell(0, 0, true)} ${cell(1, 0)} ${cell(2, 0)}`,
+      `${cell(-1, 1)} ${cell(0, 1)} ${cell(1, 1)} ${cell(2, 1)}`,
+      `${cell(-1, 2)} ${cell(0, 2)} ${cell(1, 2)} ${cell(2, 2)}`,
     ].join("\n"));
   }
 
