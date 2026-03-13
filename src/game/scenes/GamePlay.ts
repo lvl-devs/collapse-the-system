@@ -135,7 +135,12 @@ export default class GamePlay extends Phaser.Scene {
 
       const isValidCameraTile = (tx: number, ty: number): boolean => {
         const tile = groundLayer.getTileAt(tx, ty);
-        return !!tile && tile.index !== 42 && tile.collides;
+        if (!tile || !tile.collides || tile.index === 42) return false;
+        
+        // Exclude top wall cap (2,3,4) and top wall body (23,24,25) 
+        // as they are part of the thick upper wall and look bad for camera placement.
+        const excludedIndices = [2, 3, 4, 23, 24, 25];
+        return !excludedIndices.includes(tile.index);
       };
 
       const candidateTiles: Array<{ tx: number; ty: number }> = [];

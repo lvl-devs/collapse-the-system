@@ -219,100 +219,8 @@ export class DungeonGenerator {
       }
     });
 
-    // Pass 2a-fix: junction corrections using full 8-neighbor context.
-    for (let ty = 0; ty < dungeon.height; ty++) {
-      for (let tx = 0; tx < dungeon.width; tx++) {
-        const t = groundLayer.getTileAt(tx, ty);
-        if (!t || t.index < 0) continue;
+    // Pass 2a-fix (REMOVED: consolidated into final correction pass below)
 
-        const above     = groundLayer.getTileAt(tx,     ty - 1);
-        const below     = groundLayer.getTileAt(tx,     ty + 1);
-        const left      = groundLayer.getTileAt(tx - 1, ty);
-        const right     = groundLayer.getTileAt(tx + 1, ty);
-        const belowLeft  = groundLayer.getTileAt(tx - 1, ty + 1);
-        const belowRight = groundLayer.getTileAt(tx + 1, ty + 1);
-
-        const li = left?.index  ?? -1;
-        const ri = right?.index ?? -1;
-        const ai = above?.index ?? -1;
-        const bi = below?.index ?? -1;
-        const bli = belowLeft?.index  ?? -1;
-        const bri = belowRight?.index ?? -1;
-
-        if (t.index === 210) {
-          if (ai === 42 && li === 42 && ri === 42 && bi === 170 && bli === 150) {
-            groundLayer.putTileAt(42, tx, ty);
-          } else if (li === 150) {
-            groundLayer.putTileAt(148, tx, ty);
-          } else if (li === 170) {
-            groundLayer.putTileAt(170, tx, ty);
-          }
-
-        } else if (t.index === 148) {
-          if (li === 150 || li === 170) {
-            // spurio: due porte adiacenti o parete normale a sinistra → parete inferiore
-            groundLayer.putTileAt(170, tx, ty);
-          } else if (li === 189) {
-            groundLayer.putTileAt(210, tx, ty);
-          } else if (ri === 73) {
-            groundLayer.putTileAt(212, tx, ty);
-            groundLayer.putTileAt(194, tx + 1, ty);
-          }
-
-        } else if (t.index === 170) {
-          if (ri === 210) {
-            groundLayer.putTileAt(192, tx, ty);
-          } else if (ai === 130 && ri === 86) {
-            // parete laterale sopra e cap sotto → frame porta destro superiore
-            groundLayer.putTileAt(108, tx, ty);
-          } else if (bi === 2 || bi === 3 || bi === 4) {
-            groundLayer.putTileAt(189, tx, ty);
-          } else if (li === 42 && bi === 171) {
-            groundLayer.putTileAt(150, tx, ty);
-          } else if (bi === 130 && bri === 126) {
-            // passaggio tra stanze: parete destra (130) sotto, parete sinistra (126) sotto-destra → frame destro porta
-            groundLayer.putTileAt(150, tx, ty);
-          } else if (bi === 126 && bli === 130) {
-            // passaggio tra stanze: parete sinistra (126) sotto, parete destra (130) sotto-sinistra → frame sinistro porta
-            groundLayer.putTileAt(148, tx, ty);
-          }
-
-        } else if (t.index === 150) {
-          if (ai === 130 && (ri === 86 || ri === 87) && (bi === 2 || bi === 3 || bi === 4)) {
-            groundLayer.putTileAt(108, tx, ty);
-          } else if (ri === 148 || ri === 210) {
-            // frame destro spurio adiacente al frame sinistro di un'altra porta
-            groundLayer.putTileAt(170, tx, ty);
-          } else if (ri === 189) {
-            groundLayer.putTileAt(212, tx, ty);
-          } else if (ri === 170) {
-            if (bri === 2 || bri === 3 || bri === 4) {
-              groundLayer.putTileAt(212, tx, ty);
-            }
-          }
-
-        } else if (t.index === 169) {
-          if (ri === 189 || (ri === 170 && (bri === 2 || bri === 3 || bri === 4))) {
-            groundLayer.putTileAt(214, tx, ty);
-          }
-
-        } else if (t.index === 171) {
-          if (li === 189) {
-            groundLayer.putTileAt(194, tx, ty);
-          }
-
-        } else if (t.index === 73) {
-          if (li === 148) {
-            groundLayer.putTileAt(212, tx - 1, ty);
-            groundLayer.putTileAt(194, tx, ty);
-          }
-        } else if (t.index === 42) {
-          if (ai === 130 && bi === 150) {
-            groundLayer.putTileAt(130, tx, ty);
-          }
-        }
-      }
-    }
 
     // Pass 2b: Place corners and cap rows now that ALL door positions are known.
     dungeon.rooms.forEach((room) => {
@@ -461,6 +369,63 @@ export class DungeonGenerator {
           }
         }
       });
+    }
+
+    // Pass 3: Final Junction Correction Pass
+    // This runs after corridors, corners, and caps to fix room T-junctions
+    for (let ty = 0; ty < dungeon.height; ty++) {
+      for (let tx = 0; tx < dungeon.width; tx++) {
+        const t = groundLayer.getTileAt(tx, ty);
+        if (!t || t.index < 0) continue;
+
+        const above = groundLayer.getTileAt(tx, ty - 1);
+        const below = groundLayer.getTileAt(tx, ty + 1);
+        const left  = groundLayer.getTileAt(tx - 1, ty);
+        const right = groundLayer.getTileAt(tx + 1, ty);
+
+        const ai = above?.index ?? -1;
+        const bi = below?.index ?? -1;
+        const li = left?.index  ?? -1;
+        const ri = right?.index ?? -1;
+
+        // T-junction: Right wall (130) ends on top of a room roof (2,3,4)
+        // Usually results in 150 (bottom frame), but should be 108 (top frame)
+        if (t.index === 150 && ai === 130 && (bi === 2 || bi === 3 || bi === 4 || bi === 170)) {
+           groundLayer.putTileAt(108, tx, ty);
+        }
+        // T-junction: Left wall (126) ends on top of a room roof (2,3,4)
+        // Usually results in 169 (corner), but should be 106 (top frame)
+        else if (t.index === 169 && ai === 126 && (bi === 2 || bi === 3 || bi === 4 || bi === 170)) {
+           groundLayer.putTileAt(106, tx, ty);
+        }
+        // Specific horizontal junction: 210 (left frame bottom) next to 150 (right frame bottom)
+        // above a 126 wall. Should be 148 to create a proper curve.
+        else if (t.index === 210 && li === 150 && bi === 126) {
+          groundLayer.putTileAt(148, tx, ty);
+        }
+        // Cleanup: stray bottom frames hitting continuous walls
+        else if (t.index === 148 && li === 170) {
+          groundLayer.putTileAt(170, tx, ty);
+        }
+        else if (t.index === 150 && ri === 170) {
+          groundLayer.putTileAt(170, tx, ty);
+        }
+        // Cleanup: stray top frames hitting continuous walls
+        else if (t.index === 106 && li === 2) {
+          groundLayer.putTileAt(2, tx, ty);
+        }
+        else if (t.index === 108 && ri === 2) {
+          groundLayer.putTileAt(2, tx, ty);
+        }
+        // Cleanup: frame tiles floating in floor (usually from corridor spillover)
+        else if ([106, 108, 148, 150].includes(t.index)) {
+          const neighbors = [ai, bi, li, ri];
+          const hasWallNeighbor = neighbors.some(idx => [2, 3, 4, 23, 126, 130, 170].includes(idx));
+          if (!hasWallNeighbor) {
+            groundLayer.putTileAt(42, tx, ty);
+          }
+        }
+      }
     }
 
     // Setup collisions
