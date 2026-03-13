@@ -37,13 +37,13 @@ export default class Introduction extends Phaser.Scene {
 
     preload() {
         // Caricamento Immagini
-        this.load.image("intro1", "assets/images/intro/img0.png");
-        this.load.image("intro2", "assets/images/intro/img1.png");
-        this.load.image("intro3", "assets/images/intro/img2.png");
+        this.load.image("intro1", "images/intro/img0.png");
+        this.load.image("intro2", "images/intro/img1.png");
+        this.load.image("intro3", "images/intro/img2.png");
 
         // Caricamento Audio
         this.narrative.forEach(item => {
-            this.load.audio(item.audioKey, `assets/sounds/intro_audio/${item.audioKey}.mp3`);
+            this.load.audio(item.audioKey, `sounds/intro_audio/${item.audioKey}.mp3`);
         });
     }
 
@@ -91,7 +91,7 @@ export default class Introduction extends Phaser.Scene {
         this.input.keyboard?.on('keydown-RIGHT', () => this.handleSkip());
         this.input.keyboard?.on('keydown-ENTER', () => this.handleSkip());
         
-        this.input.on('pointerdown', (pointer: Phaser.Input.Pointer, currentlyOver: any[]) => {
+        this.input.on('pointerdown', (_pointer: Phaser.Input.Pointer, currentlyOver: any[]) => {
             if (!currentlyOver.includes(this.skipBtn)) {
                 this.handleSkip();
             }
@@ -185,7 +185,7 @@ export default class Introduction extends Phaser.Scene {
             this.currentVoice.stop();
         }
 
-        this.cameras.main.fade(800, 0, 0, 0, false, (camera: any, progress: number) => {
+        this.cameras.main.fade(800, 0, 0, 0, false, (_camera: any, progress: number) => {
             if (progress === 1) {
                 this.onIntroductionComplete();
             }
@@ -208,6 +208,6 @@ export default class Introduction extends Phaser.Scene {
 
     private onIntroductionComplete() {
         console.log("Fine Intro. Avvio gioco...");
-        this.scene.start("Scene1");
+        this.scene.start("Scena-1");
     }
 }

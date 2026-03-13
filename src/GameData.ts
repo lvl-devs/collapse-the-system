@@ -166,8 +166,7 @@ export const GameData: GameDataType = {
   musicVolume: 0.6,
 
   images: [
-    { name: "bg_logo", path: "assets/images/main/bg_logo.png" },
-    { name: "title_img", path: "../images/main/title.png" },
+    { name: "bg_logo", path: "images/main/bg_logo.png" },
     { name: "tileset-cyber", path: "/tilemaps/home.png" },
     { name: "tileset-cave", path: "/tilemaps/home.png" },
     { name: "tileset-facility", path: "/tilemaps/home.png" },

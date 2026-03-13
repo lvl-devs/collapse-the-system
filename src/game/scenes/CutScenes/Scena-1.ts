@@ -24,13 +24,13 @@ export default class Scene1 extends Phaser.Scene {
     ];
 
     constructor() {
-        super("Scene1");
+        super("Scena-1");
     }
 
     preload() {
         // Caricamento Immagini (Assicurati che i percorsi siano corretti)
-        this.load.image("scene1_bg1", "../assets/images/intro/img0");
-        this.load.image("scene1_bg2", "../assets/images/intro/img1"); // Esempio per la seconda immagine
+        this.load.image("scene1_bg1", "images/scena-1/img0.svg");
+        this.load.image("scene1_bg2", "images/scena-1/img1.png");
     }
 
     create() {
@@ -72,7 +72,7 @@ export default class Scene1 extends Phaser.Scene {
         // 4. Input Comandi
         this.input.keyboard?.on('keydown-ESC', () => this.skipToEnd());
         this.input.keyboard?.on('keydown-SPACE', () => this.handleSkip());
-        this.input.on('pointerdown', (pointer: any, currentlyOver: any[]) => {
+        this.input.on('pointerdown', (_pointer: any, currentlyOver: any[]) => {
             if (!currentlyOver.includes(this.skipBtn)) this.handleSkip();
         });
 
@@ -131,7 +131,7 @@ export default class Scene1 extends Phaser.Scene {
     }
 
     private skipToEnd() {
-        this.cameras.main.fade(800, 0, 0, 0, false, (camera: any, progress: number) => {
+        this.cameras.main.fade(800, 0, 0, 0, false, (_camera: any, progress: number) => {
             if (progress === 1) this.onComplete();
         });
     }
