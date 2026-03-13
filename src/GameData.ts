@@ -121,7 +121,8 @@ export const GameData: GameDataType = {
   scripts: [],
 
   fonts: [
-    { key: 'Boldonse', path: '/fonts/Boldonse.ttf' }
+    { key: 'Boldonse', path: '/fonts/Boldonse.ttf' },
+    { key: 'DigitalDisco', path: '/fonts/DigitalDisco.ttf' }
   ],
 
   webfonts: [
