@@ -379,7 +379,7 @@ private createSequenceRow(cx: number, cy: number) {
     } else {
       this.progress = Math.max(0, this.progress - 10);
       this.updateProgressUI();
-      this.showStatus("WRONG DIRECTIONS");
+      this.showStatus("ACCESS DENIED");
       this.cameras.main.shake(110, 0.0038);
 
       this.generateSequence();
