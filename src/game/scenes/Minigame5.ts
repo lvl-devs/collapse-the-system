@@ -19,6 +19,7 @@ type BagState = {
 };
 
 export default class Minigame5 extends Phaser.Scene {
+  private readonly uiFontFamily = "Pixelify Sans";
   private readonly conveyorBeltY = 558;
   private readonly bagSpeed = 175;
   private readonly bagDisplayHeight = 230;
@@ -39,6 +40,9 @@ export default class Minigame5 extends Phaser.Scene {
   private readonly conveyorCropInsetRight = -150;
   private readonly conveyorCropHeight = 163;
   private readonly conveyorScrollSpeed = -140;
+  private readonly buttonsHalfGap = 60;
+  private readonly buttonsCenterOffsetX = 125;
+  private readonly buttonsOffsetYFromScanner = 125;
 
   private scannerX = 10;
   private scannerY = -40;
@@ -62,6 +66,12 @@ export default class Minigame5 extends Phaser.Scene {
   private passButton?: Phaser.GameObjects.Image;
   private xrayTween?: Phaser.Tweens.Tween;
   private xrayReadyForDecision = false;
+  private failOverlay?: Phaser.GameObjects.Rectangle;
+  private failTitleText?: Phaser.GameObjects.Text;
+  private failReasonText?: Phaser.GameObjects.Text;
+  private successOverlay?: Phaser.GameObjects.Rectangle;
+  private successTitleText?: Phaser.GameObjects.Text;
+  private successReasonText?: Phaser.GameObjects.Text;
 
   constructor() {
     super("Minigame5");
@@ -81,6 +91,9 @@ export default class Minigame5 extends Phaser.Scene {
     this.load.image("mg5-bag-2", "images/minigame-5/suitcase-2.png");
     this.load.image("mg5-bag-3", "images/minigame-5/suitcase-3.png");
     this.load.image("mg5-bag-4", "images/minigame-5/suitcase-4.png");
+    this.load.image("mg5-bag-sus-1", "images/minigame-5/suitcase-sus-1.png");
+    this.load.image("mg5-bag-sus-2", "images/minigame-5/suitcase-sus-2.png");
+    this.load.image("mg5-bag-sus-3", "images/minigame-5/suitcase-sus-3.png");
     this.load.image("mg5-bag-blue", "images/minigame-5/suitcase-blue.png");
     this.load.image("mg5-bag-brown", "images/minigame-5/suitcase-brown.png");
     this.load.image("mg5-bag-green", "images/minigame-5/suitcase-green.png");
@@ -91,6 +104,8 @@ export default class Minigame5 extends Phaser.Scene {
   }
 
   create(): void {
+    this.resetRoundState();
+
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor("#05070b");
 
@@ -132,8 +147,8 @@ export default class Minigame5 extends Phaser.Scene {
       .setScale(scannerZoom);
 
     this.statusText = this.add
-      .text(width / 2, 70, "Scan bags. STOP suspicious bags. PASS the bomb bag.", {
-        fontFamily: "Pixelify Sans",
+      .text(width / 2, 70, "Scan bags. STOP 'sus' bags. PASS numbered + bomb.", {
+        fontFamily: this.uiFontFamily,
         fontSize: "34px",
         color: "#70fdc2",
       })
@@ -141,7 +156,7 @@ export default class Minigame5 extends Phaser.Scene {
 
     this.hintText = this.add
       .text(width / 2, 108, "S = STOP | F = PASS", {
-        fontFamily: "Pixelify Sans",
+        fontFamily: this.uiFontFamily,
         fontSize: "26px",
         color: "#d7f6ff",
       })
@@ -162,12 +177,41 @@ export default class Minigame5 extends Phaser.Scene {
     });
   }
 
+  private resetRoundState(): void {
+    this.queue = [];
+    this.bags = [];
+    this.activeBag = undefined;
+    this.isEnded = false;
+    this.waitingForNextBag = false;
+    this.conveyorIsMoving = false;
+
+    this.xrayTween?.stop();
+    this.xrayTween = undefined;
+    this.xrayReadyForDecision = false;
+
+    this.conveyorBelt = undefined;
+    this.xrayPreview = undefined;
+    this.statusText = undefined;
+    this.hintText = undefined;
+    this.stopButton = undefined;
+    this.passButton = undefined;
+    this.failOverlay = undefined;
+    this.failTitleText = undefined;
+    this.failReasonText = undefined;
+    this.successOverlay = undefined;
+    this.successTitleText = undefined;
+    this.successReasonText = undefined;
+
+    this.stopMovementSfx();
+  }
+
   update(_: number, delta: number): void {
     if (this.isEnded) return;
     const dt = delta / 1000;
-    this.setMovementSfxActive(this.conveyorIsMoving);
+    const xrayInMotion = !!this.xrayTween && this.xrayTween.isPlaying();
+    this.setMovementSfxActive(this.conveyorIsMoving || xrayInMotion);
 
-    if (this.conveyorBelt && this.conveyorIsMoving) {
+    if (this.conveyorBelt && (this.conveyorIsMoving || xrayInMotion)) {
       this.conveyorBelt.tilePositionX = Math.round(
         this.conveyorBelt.tilePositionX + this.conveyorScrollSpeed * dt
       );
@@ -197,9 +241,11 @@ export default class Minigame5 extends Phaser.Scene {
 
   private cleanupOffscreenBags(): void {
     let removed = false;
+    let bombReachedEnd = false;
     this.bags = this.bags.filter((b) => {
       if (!b.sprite.active) return false;
       if (b.sprite.x > this.scale.width + 120) {
+        if (this.isBombXrayTexture(b.xrayTexture) && b.judged) bombReachedEnd = true;
         b.sprite.destroy();
         removed = true;
         return false;
@@ -207,21 +253,27 @@ export default class Minigame5 extends Phaser.Scene {
       return true;
     });
 
+    if (bombReachedEnd && !this.isEnded) {
+      this.winMinigame();
+      return;
+    }
+
     if (removed && this.bags.length === 0 && !this.activeBag && !this.isEnded) {
       this.setMovementSfxActive(false);
       this.scheduleNextBag(220);
     }
   }
 
-  private createButtons(width: number, height: number): void {
-    const by = height - 86;
+  private createButtons(_width: number, _height: number): void {
+    const centerX = this.scannerX + this.buttonsCenterOffsetX;
+    const by = this.scannerY + this.buttonsOffsetYFromScanner;
 
     this.stopButton = this.add
-      .image(width / 2 - 140, by, "mg5-btn-stop")
+      .image(centerX - this.buttonsHalfGap, by, "mg5-btn-stop")
       .setDepth(10)
       .setInteractive({ useHandCursor: true });
     this.passButton = this.add
-      .image(width / 2 + 140, by, "mg5-btn-pass")
+      .image(centerX + this.buttonsHalfGap, by, "mg5-btn-pass")
       .setDepth(10)
       .setInteractive({ useHandCursor: true });
 
@@ -242,32 +294,34 @@ export default class Minigame5 extends Phaser.Scene {
 
   private createQueue(): void {
     const normalColors = ["mg5-bag-blue", "mg5-bag-brown", "mg5-bag-green", "mg5-bag-purple", "mg5-bag-red"];
-    const xrayNumbered = ["mg5-bag-1", "mg5-bag-2", "mg5-bag-3", "mg5-bag-4"];
+    const xrayNumberedNormal = ["mg5-bag-1", "mg5-bag-2", "mg5-bag-3", "mg5-bag-4"];
+    const xrayNumberedSus = ["mg5-bag-sus-1", "mg5-bag-sus-2", "mg5-bag-sus-3"];
 
-    const total = 10;
-    const bombIndex = Phaser.Math.Between(5, total - 2);
+    const total = 6;
+    const nonBombTotal = total - 1;
     const q: BagConfig[] = [];
+    const nonBombPool: Array<{ kind: BagKind; xrayTexture: string }> = [
+      ...xrayNumberedNormal.map((xrayTexture) => ({ kind: "normal" as const, xrayTexture })),
+      ...xrayNumberedSus.map((xrayTexture) => ({ kind: "suspect" as const, xrayTexture })),
+    ];
+    Phaser.Utils.Array.Shuffle(nonBombPool);
+    const pickedNonBomb = nonBombPool.slice(0, nonBombTotal);
 
-    for (let i = 0; i < total; i++) {
-      const baseColor = Phaser.Utils.Array.GetRandom(normalColors);
-      if (i === bombIndex) {
-        q.push({
-          kind: "bomb",
-          baseTexture: baseColor,
-          xrayTexture: "mg5-bag-bomb",
-        });
-      } else {
-        const makeSuspect = Math.random() < 0.35;
-        q.push({
-          baseTexture: baseColor,
-          // In the X-ray view we only use dedicated X-ray assets:
-          // numbered bags for non-bomb items, bomb sprite for the bomb bag.
-          xrayTexture: Phaser.Utils.Array.GetRandom(xrayNumbered),
-          kind: makeSuspect ? "suspect" : "normal",
-        });
-      }
+    for (const item of pickedNonBomb) {
+      q.push({
+        kind: item.kind,
+        baseTexture: Phaser.Utils.Array.GetRandom(normalColors),
+        xrayTexture: item.xrayTexture,
+      });
     }
 
+    q.push({
+      kind: "bomb",
+      baseTexture: Phaser.Utils.Array.GetRandom(normalColors),
+      xrayTexture: "mg5-bag-bomb",
+    });
+
+    Phaser.Utils.Array.Shuffle(q);
     this.queue = q;
   }
 
@@ -310,7 +364,7 @@ export default class Minigame5 extends Phaser.Scene {
   private showDecisionPrompt(): void {
     if (!this.activeBag || !this.statusText || !this.hintText) return;
     this.statusText.setText("Decision required: STOP or PASS?");
-    this.hintText.setText("STOP suspicious | PASS bomb");
+    this.hintText.setText("STOP sus | PASS numbered + bomb");
   }
 
   private decide(action: "stop" | "pass"): void {
@@ -318,25 +372,25 @@ export default class Minigame5 extends Phaser.Scene {
 
     const bag = this.activeBag;
     this.xrayReadyForDecision = false;
+    const isBomb = this.isBombXrayTexture(bag.xrayTexture);
+    const isSuspect = this.isSusXrayTexture(bag.xrayTexture);
+    const isNormal = !isBomb && !isSuspect;
 
     const isCorrect =
       // Bomb must pass.
-      (bag.kind === "bomb" && action === "pass") ||
+      (isBomb && action === "pass") ||
       // Suspicious bags must be stopped.
-      (bag.kind === "suspect" && action === "stop") ||
-      // Normal bags can be processed either way.
-      bag.kind === "normal";
+      (isSuspect && action === "stop") ||
+      // Numbered normal bags must pass.
+      (isNormal && action === "pass");
 
     if (!isCorrect) {
-      const failReason = bag.kind === "bomb"
+      const failReason = isBomb
         ? "You stopped the bomb bag. Mission failed."
-        : "Suspicious bag passed through. Mission failed.";
+        : isSuspect
+          ? "Suspicious bag passed through. Mission failed."
+          : "Normal bag was stopped. Mission failed.";
       this.failMinigame(failReason);
-      return;
-    }
-
-    if (bag.kind === "bomb" && action === "pass") {
-      this.winMinigame();
       return;
     }
 
@@ -390,35 +444,148 @@ export default class Minigame5 extends Phaser.Scene {
   }
 
   private failMinigame(msg: string): void {
+    if (this.isEnded) return;
     this.isEnded = true;
     this.conveyorIsMoving = false;
+    this.xrayReadyForDecision = false;
+    this.xrayTween?.stop();
+    this.xrayTween = undefined;
     this.setMovementSfxActive(false);
-    this.bags.forEach((b) => (b.speed = 0));
-    if (this.statusText) this.statusText.setText(msg);
-    if (this.hintText) this.hintText.setText("Restarting minigame...");
 
-    this.time.delayedCall(900, () => this.restartBaggageRun());
+    if (this.xrayPreview) {
+      this.xrayPreview.setVisible(false).clearTint().setAlpha(1);
+    }
+
+    if (this.activeBag?.sprite.active) {
+      this.activeBag.sprite.destroy();
+    }
+    this.activeBag = undefined;
+
+    for (const bag of this.bags) {
+      if (bag.sprite.active) bag.sprite.destroy();
+    }
+    this.bags = [];
+
+    this.stopButton?.disableInteractive();
+    this.passButton?.disableInteractive();
+
+    this.showFailureScreen(msg);
+  }
+
+  private showFailureScreen(reason: string): void {
+    const { width, height } = this.scale;
+
+    this.failOverlay = this.add
+      .rectangle(width / 2, height / 2, width, height, 0x05070b, 0.9)
+      .setDepth(20);
+
+    this.failTitleText = this.add
+      .text(width / 2, height / 2 - 42, "MISSION FAILED", {
+        fontFamily: this.uiFontFamily,
+        fontSize: "56px",
+        color: "#ff4d6d",
+        fontStyle: "bold",
+        stroke: "#14060b",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(21);
+
+    this.failReasonText = this.add
+      .text(width / 2, height / 2 + 26, reason, {
+        fontFamily: this.uiFontFamily,
+        fontSize: "28px",
+        color: "#ffd6de",
+        align: "center",
+        wordWrap: { width: Math.min(width * 0.8, 980), useAdvancedWrap: true },
+      })
+      .setOrigin(0.5)
+      .setDepth(21);
+
+    this.tweens.add({
+      targets: [this.failTitleText, this.failReasonText],
+      alpha: 0.35,
+      duration: 120,
+      yoyo: true,
+      repeat: 2,
+    });
+
+    this.time.delayedCall(2200, () => {
+      this.scene.restart();
+    });
   }
 
   private winMinigame(): void {
     this.isEnded = true;
     this.conveyorIsMoving = false;
+    this.xrayReadyForDecision = false;
+    this.xrayTween?.stop();
+    this.xrayTween = undefined;
     this.setMovementSfxActive(false);
     this.bags.forEach((b) => (b.speed = 0));
+    this.stopButton?.disableInteractive();
+    this.passButton?.disableInteractive();
 
-    if (this.statusText) this.statusText.setText("Bomb bag passed. Objective complete.");
-    if (this.hintText) this.hintText.setText("Returning to gameplay...");
+    if (this.xrayPreview) {
+      this.xrayPreview.setVisible(false).clearTint().setAlpha(1);
+    }
 
-    this.time.delayedCall(1100, () => {
+    this.showSuccessScreen();
+  }
+
+  private showSuccessScreen(): void {
+    const { width, height } = this.scale;
+
+    this.successOverlay = this.add
+      .rectangle(width / 2, height / 2, width, height, 0x05070b, 0.88)
+      .setDepth(20);
+
+    this.successTitleText = this.add
+      .text(width / 2, height / 2 - 42, "MISSION SUCCESSFUL", {
+        fontFamily: this.uiFontFamily,
+        fontSize: "56px",
+        color: "#46ff88",
+        fontStyle: "bold",
+        stroke: "#09100c",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(21);
+
+    this.successReasonText = this.add
+      .text(width / 2, height / 2 + 24, "Bomb bag passed.", {
+        fontFamily: this.uiFontFamily,
+        fontSize: "28px",
+        color: "#b9ffe2",
+        align: "center",
+      })
+      .setOrigin(0.5)
+      .setDepth(21);
+
+    this.tweens.add({
+      targets: [this.successTitleText, this.successReasonText],
+      alpha: 0.35,
+      duration: 120,
+      yoyo: true,
+      repeat: 2,
+    });
+
+    this.time.delayedCall(2200, () => {
       this.scene.stop();
       this.scene.resume("GamePlay");
     });
   }
 
+  private isSusXrayTexture(xrayTexture: string): boolean {
+    return xrayTexture.includes("sus");
+  }
+
+  private isBombXrayTexture(xrayTexture: string): boolean {
+    return xrayTexture.includes("bomb");
+  }
+
   private pauseForDecision(): void {
-    this.conveyorIsMoving = false;
     this.xrayReadyForDecision = false;
-    this.setMovementSfxActive(false);
     for (const bag of this.bags) {
       bag.speed = 0;
     }
@@ -481,6 +648,7 @@ export default class Minigame5 extends Phaser.Scene {
       duration: enterDuration,
       ease: "Linear",
       onComplete: () => {
+        this.conveyorIsMoving = false;
         this.xrayReadyForDecision = true;
         this.showDecisionPrompt();
       },
@@ -534,7 +702,7 @@ export default class Minigame5 extends Phaser.Scene {
 
     this.movementSfx = this.sound.get("mg5-conveyor-move-sfx") ?? this.sound.add("mg5-conveyor-move-sfx", {
       loop: true,
-      volume: 0.35 * (GameData.sfxVolume ?? 0.7),
+      volume: 2.5 * (GameData.sfxVolume ?? 0.7),
     });
   }
 
@@ -562,23 +730,4 @@ export default class Minigame5 extends Phaser.Scene {
     this.movementSfx = undefined;
   }
 
-  private restartBaggageRun(): void {
-    for (const bag of this.bags) {
-      if (bag.sprite.active) bag.sprite.destroy();
-    }
-    this.bags = [];
-    this.activeBag = undefined;
-    this.waitingForNextBag = false;
-    this.isEnded = false;
-    this.removeXrayLook({
-      sprite: this.add.image(-9999, -9999, "mg5-bag-blue").setVisible(false),
-      kind: "normal",
-      baseTexture: "mg5-bag-blue",
-      xrayTexture: "mg5-bag-1",
-      judged: true,
-      speed: 0,
-    });
-    this.children.removeAll(false);
-    this.scene.restart();
-  }
 }
