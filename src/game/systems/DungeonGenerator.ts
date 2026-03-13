@@ -172,9 +172,14 @@ export class DungeonGenerator {
     const tileset = map.addTilesetImage(activeKey, activeKey, tileSize, tileSize, 0, 0);
     if (!tileset) throw new Error(`[DungeonGenerator] Tileset "${activeKey}" not available.`);
 
+    const rackTileset = map.addTilesetImage("server-rack", "server-rack", tileSize, tileSize * 2, 0, 0);
+    if (rackTileset) {
+      rackTileset.tileOffset.y = 16;
+    }
+
     // Create layers
     const groundLayer = map.createBlankLayer("Ground", tileset)!.setDepth(0);
-    const stuffLayer = map.createBlankLayer("Stuff", tileset)!.setDepth(1);
+    const stuffLayer = map.createBlankLayer("Stuff", [tileset, rackTileset!])!.setDepth(1);
     const blockedDoorTiles = new Set<string>();
 
     const markBlocked = (tx: number, ty: number): void => {
@@ -622,6 +627,20 @@ export class DungeonGenerator {
       }
 
     stuffLayer.setCollisionByExclusion([-1, ...TILES.FLOOR_INDICES]);
+
+    // Place server racks on walls (muro sopra: 2, 3, 4; muro sotto: 23, 24, 25)
+    if (rackTileset) {
+      const rackGid = rackTileset.firstgid;
+      groundLayer.forEachTile((tile) => {
+        // We place it on the lower wall row (23, 24, 25). 
+        // Since it's 64px high, it will overlap the top wall row (2, 3, 4).
+        if ([23, 24, 25].includes(tile.index)) {
+          if (Phaser.Math.Between(0, 100) < 25) {
+            stuffLayer.putTileAt(rackGid, tile.x, tile.y);
+          }
+        }
+      });
+    }
 
     // Calculate spawn position and setup camera/physics bounds
     const startX = (map.tileToWorldX(startRoom.centerX) ?? 0) + tileSize / 2;

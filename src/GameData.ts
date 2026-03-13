@@ -176,6 +176,7 @@ export const GameData: GameDataType = {
     { name: "tileset-cave", path: "/tilemaps/home.png" },
     { name: "tileset-facility", path: "/tilemaps/home.png" },
     { name: "tileset-void", path: "/tilemaps/home.png" },
+    { name: "server-rack", path: "/tilemaps/server-rack.png" },
   ],
 
   tilemaps: [],
