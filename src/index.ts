@@ -10,6 +10,8 @@ import Options from "./game/scenes/Options";
 import Credits from "./game/scenes/Credits";
 import PauseMenu from "./game/scenes/PauseMenu";
 import Introduction from "./game/scenes/CutScenes/Introduction";
+import Scena1 from "./game/scenes/CutScenes/scena-1";
+
 window.addEventListener("load", () => {
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -31,7 +33,8 @@ window.addEventListener("load", () => {
       Options,
       Credits,
       PauseMenu,
-      Introduction
+      Introduction,
+      Scena1,
     ],
     physics: {
       default: "arcade",

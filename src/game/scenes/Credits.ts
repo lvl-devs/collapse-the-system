@@ -34,12 +34,12 @@ export default class Credits extends Phaser.Scene {
 
     MusicManager.start(this, Credits.MENU_MUSIC_KEY, {
       loop: true,
-      volume: GameData.musicVolume ?? 0.6,
+      volume: MusicManager.toEngineVolume(GameData.musicVolume ?? 0.6),
     });
 
     SfxManager.start(this, Credits.RAIN_SFX_KEY, {
       loop: true,
-      volume: GameData.sfxVolume ?? 0.35,
+      volume: GameData.sfxVolume ?? 0.7,
     });
 
     // ===== BACKGROUND =====
