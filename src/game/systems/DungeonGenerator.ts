@@ -790,7 +790,7 @@ export class DungeonGenerator {
     stuffLayer.setCollisionByExclusion([-1, ...TILES.FLOOR_INDICES]);
 
     // Generic overlay rules (driven by JSON)
-    this.applyOverlayRules(config, dungeon, groundLayer, stuffLayer, overlayTilesets, blockedDoorTiles);
+    const nonCollidingIndices = this.applyOverlayRules(config, dungeon, groundLayer, stuffLayer, overlayTilesets, blockedDoorTiles);
 
     // Passage doors (hallways and room entrances) on dedicated overlay layer.
     this.applyDoorOverlays(config, doorLayer, overlayTilesets);
@@ -804,6 +804,8 @@ export class DungeonGenerator {
 
     // Final collision update for everything on stuff layer
     stuffLayer.setCollisionByExclusion([-1, ...TILES.FLOOR_INDICES]);
+    // Specifically disable collision for overlays that requested no collision
+    nonCollidingIndices.forEach(idx => stuffLayer.setCollision(idx, false));
 
     return { map, groundLayer, stuffLayer, doorLayer, dungeon, startRoom, endRoom, otherRooms, startX, startY };
   }
@@ -815,8 +817,9 @@ export class DungeonGenerator {
     stuffLayer: Phaser.Tilemaps.TilemapLayer,
     overlayTilesets: Record<string, Phaser.Tilemaps.Tileset>,
     blockedDoorTiles: Set<string>
-  ): void {
-    if (!config.overlayRules || config.overlayRules.length === 0) return;
+  ): Set<number> {
+    const nonCollidingIndices = new Set<number>();
+    if (!config.overlayRules || config.overlayRules.length === 0) return nonCollidingIndices;
 
     const ruleState = config.overlayRules.map(() => ({ alternateIndex: 0 }));
 
@@ -846,9 +849,9 @@ export class DungeonGenerator {
             }
             const overlayTile = stuffLayer.putTileAt(ts.firstgid + frameOffset, tile.x, tile.y);
             
-            // Mark for collision if specified in the rule
-            if (rule.collision && overlayTile) {
-               // We will update collision for the whole layer at the end of buildTilemap
+            // Collect indices for collision handling
+            if (!rule.collision) {
+               nonCollidingIndices.add(ts.firstgid + frameOffset);
             }
           }
         }
@@ -876,6 +879,8 @@ export class DungeonGenerator {
         });
       }
     });
+
+    return nonCollidingIndices;
   }
 
   private static applyDoorOverlays(
@@ -892,6 +897,23 @@ export class DungeonGenerator {
     const doorPlacement = config.doors?.placement ?? "corridorEntrances";
     if (doorPlacement !== "corridorEntrances") return;
 
+    const fixedRooms = config.fixedRooms ?? [];
+    const centerRoom = fixedRooms.find(r => r.id === "center") || fixedRooms.find(r => r.role === "start");
+    const centerX = centerRoom ? centerRoom.x + centerRoom.width / 2 : 0;
+    const centerY = centerRoom ? centerRoom.y + centerRoom.height / 2 : 0;
+
+    const pickDoorTilesetForRoom = (room: { id: string; x: number; y: number; width: number; height: number; role?: DungeonRoomRole }): Phaser.Tilemaps.Tileset | undefined => {
+      if (centerRoom && room.id === centerRoom.id) return centralDoorTs || sideDoorTs;
+      if (centerRoom) {
+        const roomCenterX = room.x + room.width / 2;
+        const roomCenterY = room.y + room.height / 2;
+        const dx = Math.abs(roomCenterX - centerX);
+        const dy = Math.abs(roomCenterY - centerY);
+        if (dx > dy) return sideDoorTs || centralDoorTs;
+      }
+      return centralDoorTs || sideDoorTs;
+    };
+
     // Doors only at fixed corridor entrances.
     if (config.fixedCorridors) {
       config.fixedCorridors.forEach(corr => {
@@ -899,15 +921,7 @@ export class DungeonGenerator {
         const toRoom = config.fixedRooms?.find(r => r.id === corr.to);
         if (!fromRoom || !toRoom) return;
 
-        const fromCenterX = fromRoom.x + fromRoom.width / 2;
-        const fromCenterY = fromRoom.y + fromRoom.height / 2;
-        const toCenterX = toRoom.x + toRoom.width / 2;
-        const toCenterY = toRoom.y + toRoom.height / 2;
-        const lateralCorridor = Math.abs(fromCenterX - toCenterX) >= Math.abs(fromCenterY - toCenterY);
-
         if (corr.type === "horizontal") {
-          const doorTs = lateralCorridor ? sideDoorTs : centralDoorTs;
-          if (!doorTs) return;
           const corridorY = Math.floor((fromRoom.y + fromRoom.height / 2 + toRoom.y + toRoom.height / 2) / 2);
           const fromOnLeft = fromRoom.x < toRoom.x;
           const leftRoom = fromOnLeft ? fromRoom : toRoom;
@@ -915,12 +929,12 @@ export class DungeonGenerator {
 
           const leftDoorX = leftRoom.x + leftRoom.width - 1;
           const rightDoorX = rightRoom.x;
-          doorLayer.putTileAt(doorTs.firstgid, leftDoorX, corridorY);
-          doorLayer.putTileAt(doorTs.firstgid, rightDoorX, corridorY);
+          const leftDoorTs = pickDoorTilesetForRoom(leftRoom);
+          const rightDoorTs = pickDoorTilesetForRoom(rightRoom);
+          if (leftDoorTs) doorLayer.putTileAt(leftDoorTs.firstgid, leftDoorX, corridorY);
+          if (rightDoorTs) doorLayer.putTileAt(rightDoorTs.firstgid, rightDoorX, corridorY);
 
         } else if (corr.type === "vertical") {
-          const doorTs = lateralCorridor ? sideDoorTs : centralDoorTs;
-          if (!doorTs) return;
           const corridorX = Math.floor((fromRoom.x + fromRoom.width / 2 + toRoom.x + toRoom.width / 2) / 2);
           const fromOnTop = fromRoom.y < toRoom.y;
           const topRoom = fromOnTop ? fromRoom : toRoom;
@@ -928,8 +942,10 @@ export class DungeonGenerator {
 
           const topDoorY = topRoom.y + topRoom.height - 1;
           const bottomDoorY = bottomRoom.y;
-          doorLayer.putTileAt(doorTs.firstgid, corridorX, topDoorY);
-          doorLayer.putTileAt(doorTs.firstgid, corridorX, bottomDoorY);
+          const topDoorTs = pickDoorTilesetForRoom(topRoom);
+          const bottomDoorTs = pickDoorTilesetForRoom(bottomRoom);
+          if (topDoorTs) doorLayer.putTileAt(topDoorTs.firstgid, corridorX, topDoorY);
+          if (bottomDoorTs) doorLayer.putTileAt(bottomDoorTs.firstgid, corridorX, bottomDoorY);
         }
       });
     }

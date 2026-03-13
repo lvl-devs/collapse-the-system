@@ -6,12 +6,14 @@
     { "id": "center", "x": 45, "y": 45, "width": 15, "height": 15, "role": "start" },
     { "id": "left",   "x": 34, "y": 48, "width": 9,  "height": 9,  "role": "other" },
     { "id": "right",  "x": 62, "y": 48, "width": 9,  "height": 9,  "role": "other" },
-    { "id": "up",     "x": 48, "y": 34, "width": 9,  "height": 9,  "role": "end" }
+    { "id": "up",     "x": 48, "y": 34, "width": 9,  "height": 9,  "role": "end" },
+    { "id": "studio",  "x": 120, "y": 200, "width": 12,  "height": 9,  "role": "end" }
   ],
   "corridors": [
     { "from": "center", "to": "left",   "type": "horizontal" },
     { "from": "center", "to": "right",  "type": "horizontal" },
-    { "from": "center", "to": "up",     "type": "vertical" }
+    { "from": "center", "to": "up",     "type": "vertical" },
+    { "from": "center", "to": "studio",     "type": "vertical" }
   ],
   "doors": {
     "placement": "corridorEntrances",
@@ -60,7 +62,7 @@
       "tileHeight": 64,
       "tileOffset": { "x": 0, "y": 16 },
       "roomIds": ["left", "right"],
-      "collision": true
+      "collision": false
     }
   ]
 }
