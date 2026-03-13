@@ -372,7 +372,10 @@ export class DungeonGenerator {
     }
 
     // Pass 3: Final Junction Correction Pass
-    // This runs after corridors, corners, and caps to fix room T-junctions
+    // Runs AFTER all passes to fix T-junctions, L-junctions and stray frame tiles.
+    // Neighborhoods:
+    //   ai = above,  bi = below,  li = left,  ri = right
+    //   ali = above-left,  ari = above-right,  bli = below-left,  bri = below-right
     for (let ty = 0; ty < dungeon.height; ty++) {
       for (let tx = 0; tx < dungeon.width; tx++) {
         const t = groundLayer.getTileAt(tx, ty);
@@ -382,51 +385,99 @@ export class DungeonGenerator {
         const below = groundLayer.getTileAt(tx, ty + 1);
         const left  = groundLayer.getTileAt(tx - 1, ty);
         const right = groundLayer.getTileAt(tx + 1, ty);
+        const aboveLeft  = groundLayer.getTileAt(tx - 1, ty - 1);
+        const aboveRight = groundLayer.getTileAt(tx + 1, ty - 1);
+        const belowLeft  = groundLayer.getTileAt(tx - 1, ty + 1);
+        const belowRight = groundLayer.getTileAt(tx + 1, ty + 1);
 
-        const ai = above?.index ?? -1;
-        const bi = below?.index ?? -1;
-        const li = left?.index  ?? -1;
-        const ri = right?.index ?? -1;
+        const ai  = above?.index      ?? -1;
+        const bi  = below?.index      ?? -1;
+        const li  = left?.index       ?? -1;
+        const ri  = right?.index      ?? -1;
+        const ali = aboveLeft?.index  ?? -1;
+        const ari = aboveRight?.index ?? -1;
+        const bli = belowLeft?.index  ?? -1;
+        const bri = belowRight?.index ?? -1;
 
-        // T-junction: Right wall (130) ends on top of a room roof (2,3,4)
-        // Usually results in 150 (bottom frame), but should be 108 (top frame)
-        if (t.index === 150 && ai === 130 && (bi === 2 || bi === 3 || bi === 4 || bi === 170)) {
-           groundLayer.putTileAt(108, tx, ty);
+        // ── Helpers ─────────────────────────────────────────────────────
+        const isTopWall    = (i: number) => i === 2 || i === 3 || i === 4;
+        const isBottomWall = (i: number) => i === 169 || i === 170 || i === 171;
+        const isFloor      = (i: number) => i === 42;
+
+        // ── T-junctions: right wall drops onto roof of adjacent room ────
+        // 130 above + top wall below → 108 (top-right door frame)
+        if (t.index === 150 && ai === 130 && isTopWall(bi)) {
+          groundLayer.putTileAt(108, tx, ty);
         }
-        // T-junction: Left wall (126) ends on top of a room roof (2,3,4)
-        // Usually results in 169 (corner), but should be 106 (top frame)
-        else if (t.index === 169 && ai === 126 && (bi === 2 || bi === 3 || bi === 4 || bi === 170)) {
-           groundLayer.putTileAt(106, tx, ty);
+        // 126 above + top wall below → 106 (top-left door frame)
+        else if (t.index === 169 && ai === 126 && isTopWall(bi)) {
+          groundLayer.putTileAt(106, tx, ty);
         }
-        // Specific horizontal junction: 210 (left frame bottom) next to 150 (right frame bottom)
-        // above a 126 wall. Should be 148 to create a proper curve.
+        // 130 above + bottom wall below → 108 (right side continues through room bottom)
+        else if (t.index === 150 && ai === 130 && isBottomWall(bi)) {
+          groundLayer.putTileAt(108, tx, ty);
+        }
+        // 126 above + bottom wall below → 106
+        else if (t.index === 169 && ai === 126 && isBottomWall(bi)) {
+          groundLayer.putTileAt(106, tx, ty);
+        }
+
+        // ── Horizontal junctions: 210 (bottom-left frame used by corridor) ─
+        // 210 to the right of 150 and above 126 wall → should be 148
         else if (t.index === 210 && li === 150 && bi === 126) {
           groundLayer.putTileAt(148, tx, ty);
         }
-        // Cleanup: stray bottom frames hitting continuous walls
+        // 210 to the right of 148 → floor (double frame collision)
+        else if (t.index === 210 && li === 148) {
+          groundLayer.putTileAt(42, tx, ty);
+        }
+
+        // ── Stray bottom frames next to continuous walls ─────────────────
+        // 148 immediately right of a bottom wall → also bottom wall
         else if (t.index === 148 && li === 170) {
           groundLayer.putTileAt(170, tx, ty);
         }
+        // 150 immediately left of a bottom wall → also bottom wall
         else if (t.index === 150 && ri === 170) {
           groundLayer.putTileAt(170, tx, ty);
         }
-        // Cleanup: stray top frames hitting continuous walls
-        else if (t.index === 106 && li === 2) {
-          groundLayer.putTileAt(2, tx, ty);
+        // 148 below a right wall (130) → should be bottom-right corner (171)
+        else if (t.index === 148 && ai === 130 && isFloor(li)) {
+          groundLayer.putTileAt(171, tx, ty);
         }
-        else if (t.index === 108 && ri === 2) {
-          groundLayer.putTileAt(2, tx, ty);
+        // 150 below a left wall (126) → should be bottom-left corner (169)
+        else if (t.index === 150 && ai === 126 && isFloor(ri)) {
+          groundLayer.putTileAt(169, tx, ty);
         }
-        // Cleanup: frame tiles floating in floor (usually from corridor spillover)
+
+        // ── Stray top frames next to continuous top wall ─────────────────
+        else if (t.index === 106 && isTopWall(li) && isFloor(ri)) {
+          groundLayer.putTileAt(li, tx, ty);
+        }
+        else if (t.index === 108 && isTopWall(ri) && isFloor(li)) {
+          groundLayer.putTileAt(ri, tx, ty);
+        }
+
+        // ── Floor tile masking a side wall column ────────────────────────
+        // Floor between two stacked side-walls should be the correct wall tile
+        else if (isFloor(t.index) && ai === 130 && bi === 130) {
+          groundLayer.putTileAt(130, tx, ty);
+        }
+        else if (isFloor(t.index) && ai === 126 && bi === 126) {
+          groundLayer.putTileAt(126, tx, ty);
+        }
+
+        // ── Completely floating door-frame tiles (no wall neighbors) ─────
         else if ([106, 108, 148, 150].includes(t.index)) {
-          const neighbors = [ai, bi, li, ri];
-          const hasWallNeighbor = neighbors.some(idx => [2, 3, 4, 23, 126, 130, 170].includes(idx));
-          if (!hasWallNeighbor) {
-            groundLayer.putTileAt(42, tx, ty);
+          const wallNeighbors = [ai, bi, li, ri, ali, ari, bli, bri]
+            .filter(i => i === 2 || i === 3 || i === 4 || i === 23 || i === 126 || i === 130 || isBottomWall(i) || i === 86);
+          if (wallNeighbors.length === 0) {
+            groundLayer.putTileAt(42, tx, ty); // replace with floor
           }
         }
       }
     }
+
 
     // Setup collisions
     groundLayer.setCollisionByExclusion([-1, ...TILES.FLOOR_INDICES]);
