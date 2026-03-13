@@ -29,8 +29,8 @@ export default class Scene1 extends Phaser.Scene {
 
     preload() {
         // Caricamento Immagini (Assicurati che i percorsi siano corretti)
-        this.load.image("scene1_bg1", "");
-        this.load.image("scene1_bg2", "../assets/images/scena-2.png"); // Esempio per la seconda immagine
+        this.load.image("scene1_bg1", "../assets/images/intro/img0");
+        this.load.image("scene1_bg2", "../assets/images/intro/img1"); // Esempio per la seconda immagine
     }
 
     create() {
@@ -152,6 +152,6 @@ export default class Scene1 extends Phaser.Scene {
 
     private onComplete() {
         // Passa alla scena successiva (es. Scene2 o il gioco vero e proprio)
-        this.scene.start("Scene2");
+        this.scene.start("GamePlay");
     }
 }

@@ -37,13 +37,13 @@ export default class Introduction extends Phaser.Scene {
 
     preload() {
         // Caricamento Immagini
-        this.load.image("intro1", "../assets/images/introduzione-1.png");
-        this.load.image("intro2", "../assets/images/introduzione-4.png");
-        this.load.image("intro3", "../assets/images/introduzione-2.png");
+        this.load.image("intro1", "assets/images/intro/img0.png");
+        this.load.image("intro2", "assets/images/intro/img1.png");
+        this.load.image("intro3", "assets/images/intro/img2.png");
 
-        // Caricamento Audio (Assicurati che i nomi dei file siano identici alle audioKey)
+        // Caricamento Audio
         this.narrative.forEach(item => {
-            this.load.audio(item.audioKey, `../assets/sounds/intro_audio/${item.audioKey}.mp3`);
+            this.load.audio(item.audioKey, `assets/sounds/intro_audio/${item.audioKey}.mp3`);
         });
     }
 
@@ -208,6 +208,6 @@ export default class Introduction extends Phaser.Scene {
 
     private onIntroductionComplete() {
         console.log("Fine Intro. Avvio gioco...");
-        this.scene.start("Scene2");
+        this.scene.start("Scene1");
     }
 }
