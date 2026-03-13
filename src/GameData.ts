@@ -118,6 +118,7 @@ export const GameData: GameDataType = {
       },
       fixedRooms: dungeonLayout.fixedRooms as any,
       fixedCorridors: dungeonLayout.corridors as any,
+      overlayRules: (dungeonLayout as any).overlayRules,
       placement: {
         stairs: {
           roomRole: "end",
@@ -176,7 +177,8 @@ export const GameData: GameDataType = {
     { name: "tileset-cave", path: "/tilemaps/home.png" },
     { name: "tileset-facility", path: "/tilemaps/home.png" },
     { name: "tileset-void", path: "/tilemaps/home.png" },
-    { name: "server-rack", path: "/tilemaps/server-rack.png" },
+    { name: "server-rack-open", path: "/tilemaps/server-rack-open.png" },
+    { name: "server-rack-closed", path: "/tilemaps/server-rack-closed.png" },
   ],
 
   tilemaps: [],

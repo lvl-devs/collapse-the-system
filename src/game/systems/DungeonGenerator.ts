@@ -23,6 +23,18 @@ export interface DungeonTheme {
   bgColor: string;
 }
 
+export interface OverlayRule {
+  id: string;
+  tilesets: string | string[]; // List of tileset keys to alternate/choose from
+  onTiles: number[];  // Ground tiles that trigger this overlay
+  chance: number;     // 0-100
+  alternate?: boolean; // If true, alternate through tilesets pool
+  frameMapping?: Record<number, number>; // ground tile -> frame offset in overlay tileset
+  tileOffset?: { x: number, y: number };
+  tileHeight?: number; // e.g. 64 for 32x64 assets
+  roomIds?: string[];  // Optional: only apply in these rooms
+}
+
 export interface DungeonConfig {
   width: number;
   height: number;
@@ -32,10 +44,11 @@ export interface DungeonConfig {
   doorPadding?: number;
   roomGutter?: number;
   rooms: {
-    width:  { min: number; max: number; onlyOdd?: boolean };
+    width: { min: number; max: number; onlyOdd?: boolean };
     height: { min: number; max: number; onlyOdd?: boolean };
-    maxRooms?: number;
-    maxArea?: number;
+    maxRooms: number;
+    maxArea: number;
+    role?: DungeonRoomRole;
   };
   fixedRooms?: Array<{
     id: string;
@@ -50,6 +63,7 @@ export interface DungeonConfig {
     to: string;
     type: "horizontal" | "vertical";
   }>;
+  overlayRules?: OverlayRule[];
   placement?: {
     stairs?: {
       tileIndex?: number;
@@ -100,10 +114,10 @@ export interface DungeonBuildResult {
 }
 
 export const DUNGEON_THEMES: Record<DungeonThemeKey, DungeonTheme> = {
-  cyber:    { key: "cyber",    label: "Cyber Facility",      tilesetKey: "tileset-cyber",    tilesetPath: "tilemaps/home.png", bgColor: "#04040f" },
-  cave:     { key: "cave",     label: "Underground Cave",    tilesetKey: "tileset-cave",     tilesetPath: "tilemaps/home.png", bgColor: "#060402" },
-  facility: { key: "facility", label: "Abandoned Facility",  tilesetKey: "tileset-facility", tilesetPath: "tilemaps/home.png", bgColor: "#030605" },
-  void:     { key: "void",     label: "The Void",            tilesetKey: "tileset-void",     tilesetPath: "tilemaps/home.png", bgColor: "#000000" },
+  cyber: { key: "cyber", label: "Cyber Facility", tilesetKey: "tileset-cyber", tilesetPath: "tilemaps/home.png", bgColor: "#04040f" },
+  cave: { key: "cave", label: "Underground Cave", tilesetKey: "tileset-cave", tilesetPath: "tilemaps/home.png", bgColor: "#060402" },
+  facility: { key: "facility", label: "Abandoned Facility", tilesetKey: "tileset-facility", tilesetPath: "tilemaps/home.png", bgColor: "#030605" },
+  void: { key: "void", label: "The Void", tilesetKey: "tileset-void", tilesetPath: "tilemaps/home.png", bgColor: "#000000" },
 };
 
 export class DungeonGenerator {
@@ -147,6 +161,9 @@ export class DungeonGenerator {
       height: dungeon.height,
     });
 
+    const tileset = map.addTilesetImage(activeKey, activeKey, tileSize, tileSize, 0, 0);
+    if (!tileset) throw new Error(`[DungeonGenerator] Tileset "${activeKey}" not available.`);
+
     // If fixed rooms are provided, override the procedural rooms
     if (config.fixedRooms && config.fixedRooms.length > 0) {
       // Clear procedural rooms
@@ -163,23 +180,38 @@ export class DungeonGenerator {
           bottom: fr.y + fr.height - 1,
           centerX: Math.floor(fr.x + fr.width / 2),
           centerY: Math.floor(fr.y + fr.height / 2),
+          role: fr.role || "other",
           getDoorLocations: () => [] // Doors will be handled if needed, or left empty for corridors
         };
         (dungeon as any).rooms.push(room);
       });
     }
 
-    const tileset = map.addTilesetImage(activeKey, activeKey, tileSize, tileSize, 0, 0);
-    if (!tileset) throw new Error(`[DungeonGenerator] Tileset "${activeKey}" not available.`);
-
-    const rackTileset = map.addTilesetImage("server-rack", "server-rack", tileSize, tileSize * 2, 0, 0);
-    if (rackTileset) {
-      rackTileset.tileOffset.y = 16;
+    // Load all tilesets specified in overlay rules
+    const overlayTilesets: Record<string, Phaser.Tilemaps.Tileset> = {};
+    if (config.overlayRules) {
+      config.overlayRules.forEach(rule => {
+        const tsKeys = Array.isArray(rule.tilesets) ? rule.tilesets : [rule.tilesets];
+        tsKeys.forEach(tsKey => {
+          if (!overlayTilesets[tsKey]) {
+            const ts = map.addTilesetImage(tsKey, tsKey, tileSize, rule.tileHeight || tileSize, 0, 0);
+            if (ts) {
+              overlayTilesets[tsKey] = ts;
+              if (rule.tileOffset) {
+                ts.tileOffset.y = rule.tileOffset.y;
+                ts.tileOffset.x = rule.tileOffset.x || 0;
+              }
+            }
+          }
+        });
+      });
     }
+
+    const validOverlayTilesets = Object.values(overlayTilesets).filter(t => t !== null) as Phaser.Tilemaps.Tileset[];
 
     // Create layers
     const groundLayer = map.createBlankLayer("Ground", tileset)!.setDepth(0);
-    const stuffLayer = map.createBlankLayer("Stuff", [tileset, rackTileset!])!.setDepth(1);
+    const stuffLayer = map.createBlankLayer("Stuff", [tileset, ...validOverlayTilesets])!.setDepth(1);
     const blockedDoorTiles = new Set<string>();
 
     const markBlocked = (tx: number, ty: number): void => {
@@ -199,14 +231,14 @@ export class DungeonGenerator {
       groundLayer.weightedRandomize(TILES.FLOOR, x + 1, y + 2, width - 2, height - 3);
 
       // Top wall - riga 1 (cap arancione)
-      groundLayer.weightedRandomize(TILES.WALL.TOP,      left + 1, top,     width - 2, 1);
+      groundLayer.weightedRandomize(TILES.WALL.TOP, left + 1, top, width - 2, 1);
       // Top wall - riga 2 (corpo grigio)
       groundLayer.weightedRandomize(TILES.WALL.TOP_BODY, left + 1, top + 1, width - 2, 1);
       // Bottom wall
       groundLayer.weightedRandomize(TILES.WALL.BOTTOM, left + 1, bottom, width - 2, 1);
       // Side walls (from riga 2 of top down to bottom-1)
-      groundLayer.weightedRandomize(TILES.WALL.LEFT,   left,  top + 2, 1, height - 3);
-      groundLayer.weightedRandomize(TILES.WALL.RIGHT,  right, top + 2, 1, height - 3);
+      groundLayer.weightedRandomize(TILES.WALL.LEFT, left, top + 2, 1, height - 3);
+      groundLayer.weightedRandomize(TILES.WALL.RIGHT, right, top + 2, 1, height - 3);
     });
 
     // Pass 2a: Place ALL doors and mark blocked tiles across every room.
@@ -219,7 +251,7 @@ export class DungeonGenerator {
         if (door.y === 0) {
           const startX = x + door.x - 1;
           const doorY = y + door.y;
-          groundLayer.putTilesAt(TILES.DOOR.TOP,      startX, doorY);
+          groundLayer.putTilesAt(TILES.DOOR.TOP, startX, doorY);
           groundLayer.putTilesAt(TILES.DOOR.TOP_BODY, startX, doorY + 1);
 
           for (let i = 0; i < TILES.DOOR.TOP.length; i++) {
@@ -229,7 +261,7 @@ export class DungeonGenerator {
         } else if (door.y === height - 1) {
           const startX = x + door.x - 1;
           const doorY = y + door.y;
-          groundLayer.putTilesAt(TILES.DOOR.BOTTOM,      startX, doorY);
+          groundLayer.putTilesAt(TILES.DOOR.BOTTOM, startX, doorY);
           groundLayer.putTilesAt(TILES.DOOR.BOTTOM_BODY, startX, doorY - 1);
 
           for (let i = 0; i < TILES.DOOR.BOTTOM.length; i++) {
@@ -278,30 +310,30 @@ export class DungeonGenerator {
       }
 
       // Corners
-      groundLayer.putTileAt(TILES.WALL.TOP_LEFT,  left,  top);
+      groundLayer.putTileAt(TILES.WALL.TOP_LEFT, left, top);
       groundLayer.putTileAt(TILES.WALL.TOP_RIGHT, right, top);
       // Top body corners: se il vicino esterno è una door tile, usa DOOR.LEFT/RIGHT top post (106/108)
-      const topLeftBodyTile  = blockedDoorTiles.has(`${left  - 1},${top + 1}`) ? TILES.DOOR.LEFT[0][0]  : TILES.WALL.TOP_LEFT_BODY;
+      const topLeftBodyTile = blockedDoorTiles.has(`${left - 1},${top + 1}`) ? TILES.DOOR.LEFT[0][0] : TILES.WALL.TOP_LEFT_BODY;
       const topRightBodyTile = blockedDoorTiles.has(`${right + 1},${top + 1}`) ? TILES.DOOR.RIGHT[0][0] : TILES.WALL.TOP_RIGHT_BODY;
-      groundLayer.putTileAt(topLeftBodyTile,  left,  top + 1);
+      groundLayer.putTileAt(topLeftBodyTile, left, top + 1);
       groundLayer.putTileAt(topRightBodyTile, right, top + 1);
       // Bottom corners: se il vicino esterno è una door tile, usa WALL.BOTTOM plain;
       // se il vicino interno (left+1) è una door tile, usa tile 214/210 o 194/212.
       // Se il corner stesso è già occupato da un tile di porta (blockedDoorTiles), non sovrascrivere.
       const bottomRightBlocked = blockedDoorTiles.has(`${right},${bottom}`);
       const bottomRightTile = bottomRightBlocked
-                            ? null
-                            : blockedDoorTiles.has(`${right + 1},${bottom}`) ? TILES.WALL.BOTTOM[0].index as number
-                            : blockedDoorTiles.has(`${right - 1},${bottom}`) ? 194
-                            : TILES.WALL.BOTTOM_RIGHT;
+        ? null
+        : blockedDoorTiles.has(`${right + 1},${bottom}`) ? TILES.WALL.BOTTOM[0].index as number
+          : blockedDoorTiles.has(`${right - 1},${bottom}`) ? 194
+            : TILES.WALL.BOTTOM_RIGHT;
       const bottomLeftBlocked = blockedDoorTiles.has(`${left},${bottom}`);
-      const bottomLeftTile  = bottomLeftBlocked
-                            ? null
-                            : blockedDoorTiles.has(`${left  - 1},${bottom}`) ? TILES.WALL.BOTTOM[0].index as number
-                            : blockedDoorTiles.has(`${left  + 1},${bottom}`) ? 214
-                            : TILES.WALL.BOTTOM_LEFT;
+      const bottomLeftTile = bottomLeftBlocked
+        ? null
+        : blockedDoorTiles.has(`${left - 1},${bottom}`) ? TILES.WALL.BOTTOM[0].index as number
+          : blockedDoorTiles.has(`${left + 1},${bottom}`) ? 214
+            : TILES.WALL.BOTTOM_LEFT;
       if (bottomRightTile !== null) groundLayer.putTileAt(bottomRightTile, right, bottom);
-      if (bottomLeftTile  !== null) groundLayer.putTileAt(bottomLeftTile,  left,  bottom);
+      if (bottomLeftTile !== null) groundLayer.putTileAt(bottomLeftTile, left, bottom);
       // Se il corner è diventato 214 (door interna a left+1), rimpiazzare anche quel door con 210
       if (bottomLeftTile === 214) {
         groundLayer.putTileAt(210, left + 1, bottom);
@@ -340,10 +372,10 @@ export class DungeonGenerator {
     // Draw corridors in gutter gaps between rooms
     const roomGutter = config.roomGutter ?? 0;
     if (roomGutter > 0) {
-      const leftWallIdx  = TILES.WALL.LEFT[0].index as number;
+      const leftWallIdx = TILES.WALL.LEFT[0].index as number;
       const rightWallIdx = TILES.WALL.RIGHT[0].index as number;
-      const topBodyIdx   = TILES.WALL.TOP_BODY[0].index as number;
-      const bottomIdx    = TILES.WALL.BOTTOM[0].index as number;
+      const topBodyIdx = TILES.WALL.TOP_BODY[0].index as number;
+      const bottomIdx = TILES.WALL.BOTTOM[0].index as number;
 
       // Place a tile only if the target cell is currently blank (don't overwrite room walls/floors)
       const putIfBlank = (tx: number, ty: number, tile: number): void => {
@@ -365,7 +397,7 @@ export class DungeonGenerator {
             for (let dy = 1; dy <= roomGutter; dy++) {
               const ty = absY - dy;
               if (ty >= 0) {
-                putIfBlank(absX,     ty, TILES.FLOOR[0].index as number);
+                putIfBlank(absX, ty, TILES.FLOOR[0].index as number);
                 putIfBlank(absX + 1, ty, TILES.FLOOR[0].index as number);
                 putWallIfBlank(absX - 1, ty, leftWallIdx);
                 putWallIfBlank(absX + 2, ty, rightWallIdx);
@@ -376,7 +408,7 @@ export class DungeonGenerator {
             for (let dy = 1; dy <= roomGutter; dy++) {
               const ty = absY + dy;
               if (ty < dungeon.height) {
-                putIfBlank(absX,     ty, TILES.FLOOR[0].index as number);
+                putIfBlank(absX, ty, TILES.FLOOR[0].index as number);
                 putIfBlank(absX + 1, ty, TILES.FLOOR[0].index as number);
                 putWallIfBlank(absX - 1, ty, leftWallIdx);
                 putWallIfBlank(absX + 2, ty, rightWallIdx);
@@ -388,7 +420,7 @@ export class DungeonGenerator {
             for (let dx = 1; dx <= roomGutter; dx++) {
               const tx = absX - dx;
               if (tx >= 0) {
-                putIfBlank(tx, absY,     TILES.FLOOR[0].index as number);
+                putIfBlank(tx, absY, TILES.FLOOR[0].index as number);
                 putIfBlank(tx, absY + 1, TILES.FLOOR[0].index as number);
                 putWallIfBlank(tx, absY - 1, topBodyIdx);
                 putWallIfBlank(tx, absY + 2, bottomIdx);
@@ -399,7 +431,7 @@ export class DungeonGenerator {
             for (let dx = 1; dx <= roomGutter; dx++) {
               const tx = absX + dx;
               if (tx < dungeon.width) {
-                putIfBlank(tx, absY,     TILES.FLOOR[0].index as number);
+                putIfBlank(tx, absY, TILES.FLOOR[0].index as number);
                 putIfBlank(tx, absY + 1, TILES.FLOOR[0].index as number);
                 putWallIfBlank(tx, absY - 1, topBodyIdx);
                 putWallIfBlank(tx, absY + 2, bottomIdx);
@@ -414,14 +446,23 @@ export class DungeonGenerator {
     if (config.fixedCorridors && config.fixedCorridors.length > 0) {
       const { fixedCorridors, fixedRooms } = config;
 
+      const clearPassage = (tx: number, ty: number, w: number, h: number) => {
+        groundLayer.weightedRandomize(TILES.FLOOR, tx, ty, w, h);
+        for (let ix = tx; ix < tx + w; ix++) {
+          for (let iy = ty; iy < ty + h; iy++) {
+            stuffLayer.removeTileAt(ix, iy);
+          }
+        }
+      };
+
       fixedCorridors.forEach(corr => {
         const fromRoom = fixedRooms?.find(r => r.id === corr.from);
         const toRoom = fixedRooms?.find(r => r.id === corr.to);
         if (!fromRoom || !toRoom) return;
 
-        const leftWallIdx  = TILES.WALL.LEFT[0].index as number;
+        const leftWallIdx = TILES.WALL.LEFT[0].index as number;
         const rightWallIdx = TILES.WALL.RIGHT[0].index as number;
-        const bottomIdx    = TILES.WALL.BOTTOM[0].index as number;
+        const bottomIdx = TILES.WALL.BOTTOM[0].index as number;
 
         if (corr.type === "horizontal") {
           const corridorY = Math.floor((fromRoom.y + fromRoom.height / 2 + toRoom.y + toRoom.height / 2) / 2);
@@ -439,16 +480,19 @@ export class DungeonGenerator {
             groundLayer.putTileAt(86, tx, corridorY - 1);
             // Bottom wall
             groundLayer.putTileAt(bottomIdx, tx, corridorY + 2);
+            // Ensure no stuff blocks the corridor
+            stuffLayer.removeTileAt(tx, corridorY);
+            stuffLayer.removeTileAt(tx, corridorY + 1);
           }
-          // Open room walls (ensure variety)
-          groundLayer.weightedRandomize(TILES.FLOOR, corridorXStart - 1, corridorY, 2, 2);
-          groundLayer.weightedRandomize(TILES.FLOOR, corridorXEnd - 1,   corridorY, 2, 2);
+          // Open room walls (ensure variety and clear stuff)
+          clearPassage(corridorXStart - 1, corridorY, 2, 2);
+          clearPassage(corridorXEnd - 1, corridorY, 2, 2);
 
           // Corridor frame tiles for horizontal passages
           groundLayer.putTileAt(108, corridorXStart - 1, corridorY - 1);
           groundLayer.putTileAt(150, corridorXStart - 1, corridorY + 2);
-          groundLayer.putTileAt(106, corridorXEnd,       corridorY - 1);
-          groundLayer.putTileAt(148, corridorXEnd,       corridorY + 2);
+          groundLayer.putTileAt(106, corridorXEnd, corridorY - 1);
+          groundLayer.putTileAt(148, corridorXEnd, corridorY + 2);
 
         } else if (corr.type === "vertical") {
           const corridorX = Math.floor((fromRoom.x + fromRoom.width / 2 + toRoom.x + toRoom.width / 2) / 2);
@@ -459,12 +503,17 @@ export class DungeonGenerator {
             // Variety in floor tiles
             groundLayer.weightedRandomize(TILES.FLOOR, corridorX, ty, 2, 1);
             // Side walls
-            groundLayer.putTileAt(leftWallIdx,  corridorX - 1, ty);
+            groundLayer.putTileAt(leftWallIdx, corridorX - 1, ty);
             groundLayer.putTileAt(rightWallIdx, corridorX + 2, ty);
+            // Ensure no stuff blocks the corridor
+            stuffLayer.removeTileAt(corridorX, ty);
+            stuffLayer.removeTileAt(corridorX + 1, ty);
           }
-          // Open room walls (ensure variety) - vertical opening should cover walls at y, y+1
-          groundLayer.weightedRandomize(TILES.FLOOR, corridorX, corridorYStart - 1, 2, 2);
-          groundLayer.weightedRandomize(TILES.FLOOR, corridorX, corridorYEnd,     2, 2);
+          // Open room walls (ensure variety and clear stuff)
+          // Upper room junction (bottom wall)
+          clearPassage(corridorX, corridorYStart - 1, 2, 2);
+          // Lower room junction (top wall + cap): clear 3 rows (y-1, y, y+1)
+          clearPassage(corridorX, corridorYEnd - 1, 2, 3);
 
           // Corridor frame tiles for vertical passages (bottom wall of upper room)
           groundLayer.putTileAt(148, corridorX - 1, corridorYStart - 1);
@@ -556,7 +605,7 @@ export class DungeonGenerator {
             const tiles = rule.multiTile.tiles;
 
             let allTilesValid = true;
-            const cellsToPlace: Array<{x: number, y: number, tile: number}> = [];
+            const cellsToPlace: Array<{ x: number, y: number, tile: number }> = [];
 
             for (let i = 0; i < tiles.length; i++) {
               const tx = isHorizontal ? slot.x + i : slot.x;
@@ -624,20 +673,54 @@ export class DungeonGenerator {
           tryPlaceInRoom(room, true);
         }
       }
-      }
+    }
 
     stuffLayer.setCollisionByExclusion([-1, ...TILES.FLOOR_INDICES]);
 
-    // Place server racks on walls (muro sopra: 2, 3, 4; muro sotto: 23, 24, 25)
-    if (rackTileset) {
-      const rackGid = rackTileset.firstgid;
-      groundLayer.forEachTile((tile) => {
-        // We place it on the lower wall row (23, 24, 25). 
-        // Since it's 64px high, it will overlap the top wall row (2, 3, 4).
-        if ([23, 24, 25].includes(tile.index)) {
-          if (Phaser.Math.Between(0, 100) < 25) {
-            stuffLayer.putTileAt(rackGid, tile.x, tile.y);
+    // Apply generic overlay rules (driven by JSON)
+    if (config.overlayRules && config.overlayRules.length > 0) {
+      const ruleState = config.overlayRules.map(() => ({ alternateIndex: 0 }));
+      
+      const applyOverlay = (tile: Phaser.Tilemaps.Tile, rule: OverlayRule, idx: number) => {
+        if (rule.onTiles.includes(tile.index)) {
+          if (Phaser.Math.Between(0, 100) < rule.chance) {
+            const state = ruleState[idx];
+            const tsKeys = Array.isArray(rule.tilesets) ? rule.tilesets : [rule.tilesets];
+            const tsKey = rule.alternate 
+              ? tsKeys[state.alternateIndex % tsKeys.length]
+              : Phaser.Utils.Array.GetRandom(tsKeys);
+            
+            if (rule.alternate) state.alternateIndex++;
+
+            const ts = overlayTilesets[tsKey];
+            if (ts) {
+              let frameOffset = 0;
+              if (rule.frameMapping) {
+                const mapped = rule.frameMapping[tile.index];
+                if (mapped !== undefined) frameOffset = mapped;
+              }
+              stuffLayer.putTileAt(ts.firstgid + frameOffset, tile.x, tile.y);
+            }
           }
+        }
+      };
+
+      config.overlayRules.forEach((rule, idx) => {
+        if (rule.roomIds && rule.roomIds.length > 0) {
+          // Rule is specific to certain rooms
+          rule.roomIds.forEach(roomId => {
+            const roomConfig = config.fixedRooms?.find(r => r.id === roomId);
+            if (roomConfig) {
+              groundLayer.forEachTile((tile) => {
+                applyOverlay(tile, rule, idx);
+              }, undefined, roomConfig.x, roomConfig.y, roomConfig.width, roomConfig.height);
+            }
+          });
+        } else {
+          // Rule applies globally
+          groundLayer.forEachTile((tile) => {
+            applyOverlay(tile, rule, idx);
+          });
         }
       });
     }
@@ -1102,16 +1185,16 @@ export class DungeonGenerator {
               groundLayer.putTileAt(192, tx, ty);
             } else if (ai === 42 && li === 169 && ri === 189 && bi === 126) {
               groundLayer.putTileAt(192, tx, ty);
-            // Case 2: corridor bottom-wall (170) to the left, junction tile (189) to the right,
-            // floor above → inner bottom-left curve (C opening right).
+              // Case 2: corridor bottom-wall (170) to the left, junction tile (189) to the right,
+              // floor above → inner bottom-left curve (C opening right).
             } else if (li === 170 && ri === 189 && ai === 42) {
               groundLayer.putTileAt(148, tx, ty);
-            // Case 5: right-wall (130) to the left, floor to the right and above
-            // → two rooms share a vertical boundary; top of boundary = inner bottom-left curve.
+              // Case 5: right-wall (130) to the left, floor to the right and above
+              // → two rooms share a vertical boundary; top of boundary = inner bottom-left curve.
             } else if (li === 130 && ri === 42 && ai === 42) {
               groundLayer.putTileAt(148, tx, ty);
-            // Cases 1 & 4: [126] immediately right of inner-bottom-right corner (150),
-            // with more left-wall (126) below → should be 210.
+              // Cases 1 & 4: [126] immediately right of inner-bottom-right corner (150),
+              // with more left-wall (126) below → should be 210.
             } else if (li === 150 && ai === 42 && bi === 126) {
               groundLayer.putTileAt(210, tx, ty);
             } else if (ai === 130 && ri === 86) {
@@ -1147,20 +1230,20 @@ export class DungeonGenerator {
             } else if (ai === 42 && li === 42 && ri === 148 && bi === 130) {
               // Symmetric case with 148 at right.
               groundLayer.putTileAt(150, tx, ty);
-            // Case 4: junction tile (189) to the left, corridor bottom-wall (170) to the right,
-            // floor above → inner bottom-right curve (C opening left).
+              // Case 4: junction tile (189) to the left, corridor bottom-wall (170) to the right,
+              // floor above → inner bottom-right curve (C opening left).
             } else if (li === 189 && ri === 170 && ai === 42) {
               groundLayer.putTileAt(150, tx, ty);
-            // Case 6: floor to the left and above, left-wall (126) to the right
-            // → two rooms share a vertical boundary; top of boundary = inner bottom-right curve.
+              // Case 6: floor to the left and above, left-wall (126) to the right
+              // → two rooms share a vertical boundary; top of boundary = inner bottom-right curve.
             } else if (li === 42 && ri === 126 && ai === 42) {
               groundLayer.putTileAt(150, tx, ty);
-            // Case 3: inner top-right corner (108) to the left, bottom-wall (170) to the right
-            // and more right-wall below → corridor cap tile 86.
+              // Case 3: inner top-right corner (108) to the left, bottom-wall (170) to the right
+              // and more right-wall below → corridor cap tile 86.
             } else if (li === 108 && ri === 170 && ai === 42) {
               groundLayer.putTileAt(86, tx, ty);
-            // Case 10: top-wall (2) to the left, bottom-wall (170) to the right,
-            // floor above → corridor-wall transition 191.
+              // Case 10: top-wall (2) to the left, bottom-wall (170) to the right,
+              // floor above → corridor-wall transition 191.
             } else if (li === 2 && ri === 170 && ai === 42) {
               groundLayer.putTileAt(191, tx, ty);
             }

@@ -12,5 +12,27 @@
     { "from": "center", "to": "left",   "type": "horizontal" },
     { "from": "center", "to": "right",  "type": "horizontal" },
     { "from": "center", "to": "up",     "type": "vertical" }
+  ],
+  "overlayRules": [
+    {
+      "id": "server-racks-left",
+      "tilesets": "server-rack-open",
+      "onTiles": [23, 24, 25, 55, 56, 76, 77, 97, 98],
+      "chance": 80,
+      "alternate": false,
+      "tileHeight": 64,
+      "tileOffset": { "x": 0, "y": 16 },
+      "roomIds": ["left"]
+    },
+    {
+      "id": "server-racks-right",
+      "tilesets": "server-rack-closed",
+      "onTiles": [23, 24, 25, 55, 56, 76, 77, 97, 98],
+      "chance": 80,
+      "alternate": false,
+      "tileHeight": 64,
+      "tileOffset": { "x": 0, "y": 16 },
+      "roomIds": ["right"]
+    }
   ]
 }
