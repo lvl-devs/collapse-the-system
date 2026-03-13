@@ -13,6 +13,7 @@ import Minigame1 from "./game/scenes/Minigame1";
 import Minigame2 from "./game/scenes/Minigame2";
 import Minigame3 from "./game/scenes/Minigame3";
 import Minigame4 from "./game/scenes/Minigame4";
+import Minigame5 from "./game/scenes/Minigame5";
 import Minigame7 from "./game/scenes/Minigame7";
 
 window.addEventListener("load", () => {
@@ -41,6 +42,7 @@ window.addEventListener("load", () => {
       Minigame2,
       Minigame3,
       Minigame4,
+      Minigame5,
       Minigame7,
     ],
     physics: {
