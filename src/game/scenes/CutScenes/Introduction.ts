@@ -43,7 +43,7 @@ export default class Introduction extends Phaser.Scene {
 
         // Caricamento Audio (Assicurati che i nomi dei file siano identici alle audioKey)
         this.narrative.forEach(item => {
-            this.load.audio(item.audioKey, `../assets/sounds/voice/${item.audioKey}.mp3`);
+            this.load.audio(item.audioKey, `../assets/sounds/intro_audio/${item.audioKey}.mp3`);
         });
     }
 
