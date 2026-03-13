@@ -37,6 +37,19 @@ export interface DungeonConfig {
     maxRooms?: number;
     maxArea?: number;
   };
+  fixedRooms?: Array<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    role?: DungeonRoomRole;
+  }>;
+  fixedCorridors?: Array<{
+    from: string;
+    to: string;
+    type: "horizontal" | "vertical";
+  }>;
   placement?: {
     stairs?: {
       tileIndex?: number;
@@ -115,7 +128,7 @@ export class DungeonGenerator {
         width: { min: config.rooms.width.min, max: config.rooms.width.max, onlyOdd: config.rooms.width.onlyOdd ?? true },
         height: { min: config.rooms.height.min, max: config.rooms.height.max, onlyOdd: config.rooms.height.onlyOdd ?? true },
         maxArea: config.rooms.maxArea,
-        maxRooms: config.rooms.maxRooms,
+        maxRooms: (config.fixedRooms && config.fixedRooms.length > 0) ? 0 : config.rooms.maxRooms,
       },
     } as any);
 
@@ -127,13 +140,34 @@ export class DungeonGenerator {
       scene.textures.addCanvas(canvasKey, createCanvasTileset(tileSize, theme.key));
     }
 
-    // Create tilemap and tileset
     const map = scene.make.tilemap({
       tileWidth: tileSize,
       tileHeight: tileSize,
       width: dungeon.width,
       height: dungeon.height,
     });
+
+    // If fixed rooms are provided, override the procedural rooms
+    if (config.fixedRooms && config.fixedRooms.length > 0) {
+      // Clear procedural rooms
+      (dungeon as any).rooms = [];
+      config.fixedRooms.forEach(fr => {
+        const room = {
+          x: fr.x,
+          y: fr.y,
+          width: fr.width,
+          height: fr.height,
+          left: fr.x,
+          right: fr.x + fr.width - 1,
+          top: fr.y,
+          bottom: fr.y + fr.height - 1,
+          centerX: Math.floor(fr.x + fr.width / 2),
+          centerY: Math.floor(fr.y + fr.height / 2),
+          getDoorLocations: () => [] // Doors will be handled if needed, or left empty for corridors
+        };
+        (dungeon as any).rooms.push(room);
+      });
+    }
 
     const tileset = map.addTilesetImage(activeKey, activeKey, tileSize, tileSize, 0, 0);
     if (!tileset) throw new Error(`[DungeonGenerator] Tileset "${activeKey}" not available.`);
@@ -371,6 +405,73 @@ export class DungeonGenerator {
       });
     }
 
+    // Draw fixed corridors if defined
+    if (config.fixedCorridors && config.fixedCorridors.length > 0) {
+      const { fixedCorridors, fixedRooms } = config;
+
+      fixedCorridors.forEach(corr => {
+        const fromRoom = fixedRooms?.find(r => r.id === corr.from);
+        const toRoom = fixedRooms?.find(r => r.id === corr.to);
+        if (!fromRoom || !toRoom) return;
+
+        const leftWallIdx  = TILES.WALL.LEFT[0].index as number;
+        const rightWallIdx = TILES.WALL.RIGHT[0].index as number;
+        const bottomIdx    = TILES.WALL.BOTTOM[0].index as number;
+
+        if (corr.type === "horizontal") {
+          const corridorY = Math.floor((fromRoom.y + fromRoom.height / 2 + toRoom.y + toRoom.height / 2) / 2);
+          const corridorXStart = fromRoom.x < toRoom.x ? fromRoom.x + fromRoom.width : toRoom.x + toRoom.width;
+          const corridorXEnd = fromRoom.x < toRoom.x ? toRoom.x : fromRoom.x;
+
+          for (let tx = corridorXStart; tx < corridorXEnd; tx++) {
+            // Variety in floor tiles
+            groundLayer.weightedRandomize(TILES.FLOOR, tx, corridorY, 1, 2);
+            // Wall cap row replaced with 128
+            groundLayer.putTileAt(128, tx, corridorY - 3);
+            // Wall top replaced with 128 as requested
+            groundLayer.putTileAt(128, tx, corridorY - 2);
+            // Wall body (row 2, corridor uses 86 as requested)
+            groundLayer.putTileAt(86, tx, corridorY - 1);
+            // Bottom wall
+            groundLayer.putTileAt(bottomIdx, tx, corridorY + 2);
+          }
+          // Open room walls (ensure variety)
+          groundLayer.weightedRandomize(TILES.FLOOR, corridorXStart - 1, corridorY, 2, 2);
+          groundLayer.weightedRandomize(TILES.FLOOR, corridorXEnd - 1,   corridorY, 2, 2);
+
+          // Corridor frame tiles for horizontal passages
+          groundLayer.putTileAt(108, corridorXStart - 1, corridorY - 1);
+          groundLayer.putTileAt(150, corridorXStart - 1, corridorY + 2);
+          groundLayer.putTileAt(106, corridorXEnd,       corridorY - 1);
+          groundLayer.putTileAt(148, corridorXEnd,       corridorY + 2);
+
+        } else if (corr.type === "vertical") {
+          const corridorX = Math.floor((fromRoom.x + fromRoom.width / 2 + toRoom.x + toRoom.width / 2) / 2);
+          const corridorYStart = fromRoom.y < toRoom.y ? fromRoom.y + fromRoom.height : toRoom.y + toRoom.height;
+          const corridorYEnd = fromRoom.y < toRoom.y ? toRoom.y : fromRoom.y;
+
+          for (let ty = corridorYStart; ty < corridorYEnd; ty++) {
+            // Variety in floor tiles
+            groundLayer.weightedRandomize(TILES.FLOOR, corridorX, ty, 2, 1);
+            // Side walls
+            groundLayer.putTileAt(leftWallIdx,  corridorX - 1, ty);
+            groundLayer.putTileAt(rightWallIdx, corridorX + 2, ty);
+          }
+          // Open room walls (ensure variety) - vertical opening should cover walls at y, y+1
+          groundLayer.weightedRandomize(TILES.FLOOR, corridorX, corridorYStart - 1, 2, 2);
+          groundLayer.weightedRandomize(TILES.FLOOR, corridorX, corridorYEnd,     2, 2);
+
+          // Corridor frame tiles for vertical passages (bottom wall of upper room)
+          groundLayer.putTileAt(148, corridorX - 1, corridorYStart - 1);
+          groundLayer.putTileAt(150, corridorX + 2, corridorYStart - 1);
+
+          // Corridor frame tiles for vertical passages (top wall of lower room)
+          groundLayer.putTileAt(106, corridorX - 1, corridorYEnd - 1);
+          groundLayer.putTileAt(108, corridorX + 2, corridorYEnd - 1);
+        }
+      });
+    }
+
     // Final cleanup pass: corners and corridor painting can recreate broken junctions,
     // so run the junction fixer again on the final tile layout.
     this.applyJunctionFixes(groundLayer, dungeon);
@@ -379,10 +480,21 @@ export class DungeonGenerator {
     groundLayer.setCollisionByExclusion([-1, ...TILES.FLOOR_INDICES]);
 
     // Assign room roles
-    const allRooms = dungeon.rooms.slice();
-    const startRoom = allRooms.shift()!;
-    const endRoom = Phaser.Utils.Array.RemoveRandomElement(allRooms) as Room;
-    const otherRooms = (Phaser.Utils.Array.Shuffle(allRooms) as Room[]).slice(0, Math.floor(allRooms.length * 0.9));
+    let startRoom: Room;
+    let endRoom: Room;
+    let otherRooms: Room[];
+
+    if (config.fixedRooms && config.fixedRooms.length > 0) {
+      const rooms = dungeon.rooms as any[];
+      startRoom = rooms.find((_, i) => config.fixedRooms![i].role === "start") || rooms[0];
+      endRoom = rooms.find((_, i) => config.fixedRooms![i].role === "end") || (rooms.length > 1 ? rooms[rooms.length - 1] : rooms[0]);
+      otherRooms = rooms.filter((_, i) => config.fixedRooms![i].role !== "start" && config.fixedRooms![i].role !== "end");
+    } else {
+      const allRooms = dungeon.rooms.slice();
+      startRoom = allRooms.shift()!;
+      endRoom = Phaser.Utils.Array.RemoveRandomElement(allRooms) as Room;
+      otherRooms = (Phaser.Utils.Array.Shuffle(allRooms) as Room[]).slice(0, Math.floor(allRooms.length * 0.9));
+    }
 
     const getRoomsByRole = (role: DungeonRoomRole): Room[] => {
       if (role === "start") return [startRoom];

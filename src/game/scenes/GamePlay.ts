@@ -250,26 +250,14 @@ export default class GamePlay extends Phaser.Scene {
         g.fillRect(wx, wy, ts, ts);
         g.lineStyle(1, color, 0.55);
         g.strokeRect(wx, wy, ts, ts);
-        const t = this.add.text(wx + 1, wy + 1, String(tile.index), {
-          fontSize: "8px",
-          color: "#ffffff",
-          stroke: "#000000",
-          strokeThickness: 2,
-        }).setDepth(61);
-        this.tileOverlayObjects.push(t);
       });
 
       stuffLayer.forEachTile((tile) => {
         if (tile.index < 0) return;
         const wx = tile.pixelX;
         const wy = tile.pixelY;
-        const t = this.add.text(wx + 1, wy + 11, String(tile.index), {
-          fontSize: "8px",
-          color: "#ffff44",
-          stroke: "#000000",
-          strokeThickness: 2,
-        }).setDepth(61);
-        this.tileOverlayObjects.push(t);
+        g.fillStyle(0xffff44, 0.25);
+        g.fillRect(wx, wy, ts, ts);
       });
 
       this.ensureHoverPanel();

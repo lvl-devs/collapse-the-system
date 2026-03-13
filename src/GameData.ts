@@ -60,6 +60,8 @@ export interface GameDataType {
   bitmapfonts: any[];
 }
 
+import dungeonLayout from "./game/data/dungeon-layout.json";
+
 export const GameData: GameDataType = {
 
   globals: {
@@ -103,17 +105,19 @@ export const GameData: GameDataType = {
     defaultTheme: "cyber",
     availableThemes: ["cyber", "cave", "facility", "void"],
     defaultConfig: {
-      width: 100,
-      height: 100,
+      width: dungeonLayout.width || 100,
+      height: dungeonLayout.height || 100,
       tileSize: 32,
       doorPadding: 2,
       roomGutter: 4,
       rooms: {
-        width: { min: 7, max: 15, onlyOdd: true },
-        height: { min: 7, max: 15, onlyOdd: true },
+        width: { min: 7, max: 15 },
+        height: { min: 7, max: 15 },
         maxRooms: 12,
         maxArea: 150,
       },
+      fixedRooms: dungeonLayout.fixedRooms as any,
+      fixedCorridors: dungeonLayout.corridors as any,
       placement: {
         stairs: {
           roomRole: "end",
