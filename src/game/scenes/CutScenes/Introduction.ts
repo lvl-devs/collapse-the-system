@@ -208,7 +208,6 @@ export default class Introduction extends Phaser.Scene {
 
     private onIntroductionComplete() {
         console.log("Fine Intro. Avvio gioco...");
-        // Inserisci qui il cambio scena: 
-        // this.scene.start('MainScene');
+        this.scene.start("Scene2");
     }
 }
