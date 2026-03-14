@@ -105,6 +105,7 @@ export const GameData: GameDataType = {
     { name: "tileset-void", path: "/tilemaps/home.png" },
     { name: "server-rack-closed", path: "/tilemaps/other-objects/server-rack-closed.png" },
     { name: "server-rack-open", path: "/tilemaps/other-objects/server-rack-open.png" },
+    { name: "fire-extinguisher", path: "/tilemaps/other-objects/fire-extinguisher.png" },
     { name: "door-closed", path: "/tilemaps/doors/front/door-closed.png" },
     { name: "door-open", path: "/tilemaps/doors/front/door-open.png" },
     { name: "door", path: "/tilemaps/doors/front/door.png" },

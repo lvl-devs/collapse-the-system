@@ -28,6 +28,41 @@ export default class GamePlay extends Phaser.Scene {
   private isAudioPausedForMenu = false;
   private isStepSfxPlaying = false;
 
+  private getOrCreateTilesetFrame(
+    textureKey: string,
+    tileset: Phaser.Tilemaps.Tileset,
+    localTileId: number,
+  ): string | undefined {
+    const texture = this.textures.get(textureKey);
+    if (!texture) {
+      return undefined;
+    }
+
+    const frameName = `tileset-${tileset.name}-${localTileId}`;
+    if (texture.has(frameName)) {
+      return frameName;
+    }
+
+    const image = texture.getSourceImage() as HTMLImageElement | undefined;
+    if (!image || image.width <= 0 || image.height <= 0) {
+      return undefined;
+    }
+
+    const tileWidth = tileset.tileWidth;
+    const tileHeight = tileset.tileHeight;
+    const margin = (tileset as any).tileMargin ?? (tileset as any).margin ?? 0;
+    const spacing = (tileset as any).tileSpacing ?? (tileset as any).spacing ?? 0;
+    const computedColumns = Math.max(1, Math.floor((image.width - margin * 2 + spacing) / (tileWidth + spacing)));
+    const columns = (tileset as any).columns ?? computedColumns;
+    const col = localTileId % columns;
+    const row = Math.floor(localTileId / columns);
+    const frameX = margin + col * (tileWidth + spacing);
+    const frameY = margin + row * (tileHeight + spacing);
+
+    texture.add(frameName, 0, frameX, frameY, tileWidth, tileHeight);
+    return frameName;
+  }
+
   constructor() {
     super({ key: "GamePlay" });
   }
@@ -92,7 +127,7 @@ export default class GamePlay extends Phaser.Scene {
 
     // --- RENDERING OGGETTI E COLLISIONI ---
     map.objects.forEach(layer => {
-        layer.objects.forEach(obj => {
+      layer.objects.forEach(obj => {
         // Logica versatile per gli oggetti:
         // Se ha un GID (è un tile object), proviamo a renderizzarlo
         if (obj.gid) {
@@ -101,6 +136,7 @@ export default class GamePlay extends Phaser.Scene {
             if (tileset) {
                 // Per i "collection of images" tilesets, dobbiamo trovare la texture specifica
                 let textureKey = TS_MAP[tileset.name] || tileset.name;
+          let frame: string | undefined;
                 
                 // Se il tileset ha una definizione per ogni tile (come 'objects' o 'doors')
                 const tileData = (tileset as any).tileData;
@@ -110,10 +146,12 @@ export default class GamePlay extends Phaser.Scene {
                     // Estraiamo il nome del file senza estensione e cartella come fallback per la chiave
                     const parts = imageName.split('/');
                     textureKey = parts[parts.length - 1].split('.')[0];
+                  } else {
+                    frame = this.getOrCreateTilesetFrame(textureKey, tileset, localId);
                 }
 
                 if (this.textures.exists(textureKey)) {
-                    const sprite = this.add.sprite(obj.x!, obj.y!, textureKey);
+                    const sprite = this.add.sprite(obj.x!, obj.y!, textureKey, frame);
                     sprite.setOrigin(0, 1);
                     
                     // Gestione depth e collisioni dinamiche
