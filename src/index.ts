@@ -10,7 +10,7 @@ import Options from "./game/scenes/Options";
 import Credits from "./game/scenes/Credits";
 import PauseMenu from "./game/scenes/PauseMenu";
 import MiniGame6 from "./game/scenes/MiniGame-6";
-import MiniGame8 from "./game/scenes/MiniGame-8";
+import MiniGame4 from "./game/scenes/MiniGame-4";
 
 window.addEventListener("load", () => {
   const config: Phaser.Types.Core.GameConfig = {
@@ -34,7 +34,7 @@ window.addEventListener("load", () => {
       Credits,
       PauseMenu,
       MiniGame6,
-      MiniGame8
+      MiniGame4
     ],
     physics: {
       default: "arcade",

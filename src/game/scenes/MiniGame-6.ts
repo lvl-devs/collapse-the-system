@@ -26,16 +26,26 @@ export default class MiniGame6 extends Phaser.Scene {
 
     preload() {
 
+        this.load.image('background_wall', '../assets/images/bg-hacker.png');
         this.load.image('keypad_bg', '../assets/images/KEYPAD.png');
+
         this.load.audio('key_beep', '../assets/sounds/keypad_beep.mp3');
     }
 
     create() {
 
-        this.generateSecretCode();
-
         const centerX = this.cameras.main.width / 2;
         const centerY = this.cameras.main.height / 2;
+
+        // SFONDO
+        const bg = this.add.image(centerX, centerY, 'background_wall');
+
+        bg.setDisplaySize(
+            this.cameras.main.width,
+            this.cameras.main.height
+        );
+
+        this.generateSecretCode();
 
         const titleY = 110;
         const codeDisplayY = titleY + 60;
@@ -78,7 +88,7 @@ export default class MiniGame6 extends Phaser.Scene {
         }).setOrigin(0.5).setVisible(false);
 
         // DEBUG
-        this.add.text(
+        /*this.add.text(
             this.cameras.main.width - 20,
             40,
             `Codice: ${this.secretCode}`,
@@ -87,12 +97,11 @@ export default class MiniGame6 extends Phaser.Scene {
                 color: '#ffffff',
                 fontFamily: '"DigitalDisco"',
             }
-        ).setOrigin(1, 0);
+        ).setOrigin(1, 0);*/
 
         this.createNumericKeypad(keypadStartY);
         this.createActionButtons(keypadStartY);
 
-        // Bottone X
         this.createCloseButton();
 
         const keyboard = this.input.keyboard;
@@ -150,18 +159,16 @@ export default class MiniGame6 extends Phaser.Scene {
 
         const centerX = this.cameras.main.width / 2;
 
-        const x = centerX + 220; // più a destra
+        const x = centerX + 220;
         const y = 90;
 
         const radius = 14;
 
         const graphics = this.add.graphics();
 
-        // cerchio rosso contorno
         graphics.lineStyle(3, 0xff0000);
         graphics.strokeCircle(x, y, radius);
 
-        // X bianca
         graphics.lineStyle(3, 0xffffff);
         graphics.beginPath();
         graphics.moveTo(x - 6, y - 6);
