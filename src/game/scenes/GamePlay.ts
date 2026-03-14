@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { GameData } from "../../GameData";
+import MapProcessor from "../systems/MapProcessor";
 import AssetPipeline from "../systems/AssetPipeline";
 import MusicManager from "../audio/MusicManager";
 import LevelStorage from "../systems/LevelStorage";
@@ -41,90 +42,17 @@ export default class GamePlay extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.PAUSE, this.pauseCurrentLevelAudio, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.resumeCurrentLevelMusic, this);
 
-    const map = this.make.tilemap({ key: "static-map" });
-    const tilesets: Phaser.Tilemaps.Tileset[] = [];
-    
-    // Mappatura tileset standard
+    // Mappatura tileset standard (opzionale, MapProcessor prova a indovinare)
     const TS_MAP: Record<string, string> = {
         "home": "tileset-cyber",
-        "server-rack": "server-rack-closed"
+        "objects": "server-rack-closed"
     };
 
-    map.tilesets.forEach(t => {
-        const key = TS_MAP[t.name] || t.name;
-        if (this.textures.exists(key)) {
-            const added = map.addTilesetImage(t.name, key);
-            if (added) tilesets.push(added);
-        }
-    });
+    const mapData = MapProcessor.processMap(this, "static-map", TS_MAP);
+    const { map, layers, spawnX, spawnY, minX, minY, maxX, maxY } = mapData;
 
-    const activeLayers: Phaser.Tilemaps.TilemapLayer[] = [];
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const floorGids = [43, 44, 45, 46, 107, 109, 110];
-    let allFloorTiles: Phaser.Tilemaps.Tile[] = [];
-
-    map.layers.forEach(layerData => {
-        const layer = map.createLayer(layerData.name, tilesets, 0, 0);
-        if (!layer) return;
-
-        if (layerData.x) layer.setX(layerData.x);
-        if (layerData.y) layer.setY(layerData.y);
-
-        // Escludi il pavimento dalle collisioni per permettere il movimento
-        layer.setCollisionByExclusion([-1, ...floorGids]);
-        activeLayers.push(layer);
-
-        layer.forEachTile(tile => {
-            if (tile.index === -1) return;
-            const px = tile.pixelX + (layerData.x || 0);
-            const py = tile.pixelY + (layerData.y || 0);
-            minX = Math.min(minX, px);
-            minY = Math.min(minY, py);
-            maxX = Math.max(maxX, px + 32);
-            maxY = Math.max(maxY, py + 32);
-
-            // Raccogli i tile di pavimento per lo spawn
-            if (floorGids.includes(tile.index)) {
-                allFloorTiles.push(tile);
-            }
-        });
-    });
-
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    let spawnX = centerX;
-    let spawnY = centerY;
-
-    // Filtriamo i tile di pavimento per trovare quelli "liberi" (senza oggetti sopra)
-    const clearFloorTiles = allFloorTiles.filter(tile => {
-        // Controlla se negli altri layer (es. objects) c'è qualcosa alle stesse coordinate
-        return !activeLayers.some(layer => {
-            if (layer === tile.tilemapLayer) return false;
-            const otherTile = layer.getTileAt(tile.x, tile.y);
-            return otherTile && otherTile.index !== -1;
-        });
-    });
-
-    const candidateTiles = clearFloorTiles.length > 0 ? clearFloorTiles : allFloorTiles;
-
-    if (candidateTiles.length > 0) {
-        // Cerchiamo un tile che sia il più possibile "centrale" rispetto alla massa di tile
-        // O semplicemente quello più vicino al centro geometrico
-        let bestTile = candidateTiles[0];
-        let minDistance = Infinity;
-        
-        candidateTiles.forEach(tile => {
-            const tx = tile.pixelX + 16;
-            const ty = tile.pixelY + 16;
-            const dist = Phaser.Math.Distance.Between(centerX, centerY, tx, ty);
-            if (dist < minDistance) {
-                minDistance = dist;
-                bestTile = tile;
-            }
-        });
-        spawnX = bestTile.pixelX + 16;
-        spawnY = bestTile.pixelY + 16;
-    }
+    console.log(`[Spawn Debug] Bounds: [${minX}, ${minY}] to [${maxX}, ${maxY}]`);
+    console.log(`[Spawn Debug] Spawn finale: (${spawnX}, ${spawnY})`);
 
     const playerInput = createKeyboardMovementInput(this);
     this.playerController = new CharacterController({
@@ -158,14 +86,40 @@ export default class GamePlay extends Phaser.Scene {
       prioritizeVertical: true,
     });
 
-    // Collisioni su tutti i layer
-    activeLayers.forEach(l => this.physics.add.collider(this.playerController.sprite, l));
+    // --- RENDERING OGGETTI E COLLISIONI ---
+    map.getObjectLayer("objects")?.objects.forEach(obj => {
+        // Logica versatile per gli oggetti:
+        // Se ha un GID (è un tile object), proviamo a renderizzarlo
+        if (obj.gid) {
+            // Cerchiamo il nome della texture associata al tileset del GID
+            const tileset = map.tilesets.find(t => obj.gid! >= t.firstgid && obj.gid! < t.firstgid + (t as any).tileCount);
+            if (tileset) {
+                const textureKey = TS_MAP[tileset.name] || tileset.name;
+                const sprite = this.add.sprite(obj.x!, obj.y!, textureKey);
+                sprite.setOrigin(0, 1);
+                
+                // Gestione depth e collisioni dinamiche
+                const depth = MapProcessor.getProperty(obj, "depth") || 5;
+                sprite.setDepth(depth);
+                
+                const hasCollision = MapProcessor.getProperty(obj, "collision") !== false;
+                if (hasCollision) {
+                    this.physics.add.existing(sprite, true);
+                    this.physics.add.collider(this.playerController.sprite, sprite);
+                }
+            }
+        }
+    });
+
+    // Collisioni su tutti i layer base processati
+    layers.forEach(l => this.physics.add.collider(this.playerController.sprite, l));
 
     this.cameras.main.setBounds(minX, minY, maxX - minX, maxY - minY);
     this.physics.world.setBounds(minX, minY, maxX - minX, maxY - minY);
     this.cameras.main.startFollow(this.playerController.sprite, true, 0.1, 0.1);
-    this.cameras.main.setZoom(1.5);
+    this.cameras.main.setZoom(1.3);
     this.cameras.main.setBackgroundColor("#000000");
+
 
     this.escPauseKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.collisionDebugKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.C);

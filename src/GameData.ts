@@ -104,10 +104,11 @@ export const GameData: GameDataType = {
     { name: "tileset-facility", path: "/tilemaps/home.png" },
     { name: "tileset-void", path: "/tilemaps/home.png" },
     { name: "server-rack-closed", path: "/tilemaps/other-objects/server-rack-closed.png" },
+    { name: "server-rack-open", path: "/tilemaps/other-objects/server-rack-open.png" },
   ],
 
   tilemaps: [
-    { key: "static-map", path: "/tilemaps/map.json" }
+    { key: "static-map", path: "/tilemaps/map-agency.json" }
   ],
   atlas: [],
   spritesheets: [
