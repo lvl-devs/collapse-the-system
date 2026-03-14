@@ -1,36 +1,27 @@
 import Phaser from "phaser";
 import { GameData } from "../../GameData";
-import DungeonGenerator from "../systems/DungeonGenerator";
-import type { DungeonBuildResult } from "../systems/DungeonGenerator";
 import AssetPipeline from "../systems/AssetPipeline";
 import MusicManager from "../audio/MusicManager";
 import LevelStorage from "../systems/LevelStorage";
-import { DEFAULT_TILES } from "../systems/TileMapping";
 import CharacterController, { createKeyboardMovementInput } from "../entities/CharacterController";
 
-const PLAYER_SPEED = 160;
+const PLAYER_SPEED = 250;
 
 export default class GamePlay extends Phaser.Scene {
   private static readonly LEVEL_MUSIC_BY_LEVEL: Record<number, string> = {
     1: "level-1-theme",
   };
 
-  private dungeonResult!: DungeonBuildResult;
   private playerController!: CharacterController;
   private hasPlayerReachedStairs = false;
   private currentLevel = 1;
-  private debugMode = false;
-  private tileDebugGraphics?: Phaser.GameObjects.Graphics;
-  private tileOverlayObjects: Phaser.GameObjects.GameObject[] = [];
-  private hoverInfoPanel?: Phaser.GameObjects.Text;
   private escPauseKey?: Phaser.Input.Keyboard.Key;
   private collisionDebugKey?: Phaser.Input.Keyboard.Key;
-  private tileOverlayToggleKey?: Phaser.Input.Keyboard.Key;
-  private tileProbeToggleKey?: Phaser.Input.Keyboard.Key;
+  private debugMode = false;
+  private tileDebugGraphics?: Phaser.GameObjects.Graphics;
   private currentLevelMusicKey?: string;
   private pausedSfxDuringPause: Phaser.Sound.BaseSound[] = [];
   private isAudioPausedForMenu = false;
-  private tileProbeMode = false;
 
   constructor() {
     super({ key: "GamePlay" });
@@ -50,28 +41,96 @@ export default class GamePlay extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.PAUSE, this.pauseCurrentLevelAudio, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.resumeCurrentLevelMusic, this);
 
-    const cfg = GameData.dungeon.defaultConfig;
-    this.dungeonResult = DungeonGenerator.buildTilemap(this, {
-      ...cfg,
-      theme: GameData.dungeon.defaultTheme,
+    const map = this.make.tilemap({ key: "static-map" });
+    const tilesets: Phaser.Tilemaps.Tileset[] = [];
+    
+    // Mappatura tileset standard
+    const TS_MAP: Record<string, string> = {
+        "home": "tileset-cyber",
+        "server-rack": "server-rack-closed"
+    };
+
+    map.tilesets.forEach(t => {
+        const key = TS_MAP[t.name] || t.name;
+        if (this.textures.exists(key)) {
+            const added = map.addTilesetImage(t.name, key);
+            if (added) tilesets.push(added);
+        }
     });
 
-    const { groundLayer, stuffLayer, startX, startY, map } = this.dungeonResult;
+    const activeLayers: Phaser.Tilemaps.TilemapLayer[] = [];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const floorGids = [43, 44, 45, 46, 107, 109, 110];
+    let allFloorTiles: Phaser.Tilemaps.Tile[] = [];
 
-    const theme = GameData.dungeon.defaultTheme;
-    const bgColors: Record<string, string> = {
-      cyber:    "#04040f",
-      cave:     "#060402",
-      facility: "#030605",
-      void:     "#000000",
-    };
-    this.cameras.main.setBackgroundColor(bgColors[theme] ?? "#000000");
+    map.layers.forEach(layerData => {
+        const layer = map.createLayer(layerData.name, tilesets, 0, 0);
+        if (!layer) return;
+
+        if (layerData.x) layer.setX(layerData.x);
+        if (layerData.y) layer.setY(layerData.y);
+
+        // Escludi il pavimento dalle collisioni per permettere il movimento
+        layer.setCollisionByExclusion([-1, ...floorGids]);
+        activeLayers.push(layer);
+
+        layer.forEachTile(tile => {
+            if (tile.index === -1) return;
+            const px = tile.pixelX + (layerData.x || 0);
+            const py = tile.pixelY + (layerData.y || 0);
+            minX = Math.min(minX, px);
+            minY = Math.min(minY, py);
+            maxX = Math.max(maxX, px + 32);
+            maxY = Math.max(maxY, py + 32);
+
+            // Raccogli i tile di pavimento per lo spawn
+            if (floorGids.includes(tile.index)) {
+                allFloorTiles.push(tile);
+            }
+        });
+    });
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    let spawnX = centerX;
+    let spawnY = centerY;
+
+    // Filtriamo i tile di pavimento per trovare quelli "liberi" (senza oggetti sopra)
+    const clearFloorTiles = allFloorTiles.filter(tile => {
+        // Controlla se negli altri layer (es. objects) c'è qualcosa alle stesse coordinate
+        return !activeLayers.some(layer => {
+            if (layer === tile.tilemapLayer) return false;
+            const otherTile = layer.getTileAt(tile.x, tile.y);
+            return otherTile && otherTile.index !== -1;
+        });
+    });
+
+    const candidateTiles = clearFloorTiles.length > 0 ? clearFloorTiles : allFloorTiles;
+
+    if (candidateTiles.length > 0) {
+        // Cerchiamo un tile che sia il più possibile "centrale" rispetto alla massa di tile
+        // O semplicemente quello più vicino al centro geometrico
+        let bestTile = candidateTiles[0];
+        let minDistance = Infinity;
+        
+        candidateTiles.forEach(tile => {
+            const tx = tile.pixelX + 16;
+            const ty = tile.pixelY + 16;
+            const dist = Phaser.Math.Distance.Between(centerX, centerY, tx, ty);
+            if (dist < minDistance) {
+                minDistance = dist;
+                bestTile = tile;
+            }
+        });
+        spawnX = bestTile.pixelX + 16;
+        spawnY = bestTile.pixelY + 16;
+    }
 
     const playerInput = createKeyboardMovementInput(this);
     this.playerController = new CharacterController({
       scene: this,
-      x: startX,
-      y: startY,
+      x: spawnX, 
+      y: spawnY,
       textureKey: "hacker",
       animationNamespace: "player-hacker",
       speed: PLAYER_SPEED,
@@ -99,48 +158,26 @@ export default class GamePlay extends Phaser.Scene {
       prioritizeVertical: true,
     });
 
-    this.physics.add.collider(this.playerController.sprite, groundLayer);
-    this.physics.add.collider(this.playerController.sprite, stuffLayer);
+    // Collisioni su tutti i layer
+    activeLayers.forEach(l => this.physics.add.collider(this.playerController.sprite, l));
 
-    // Stairs callback: restart scene on next level
-    stuffLayer.setTileIndexCallback(DEFAULT_TILES.STAIRS, () => {
-      stuffLayer.setTileIndexCallback(DEFAULT_TILES.STAIRS, () => {}, this);
-      this.hasPlayerReachedStairs = true;
-      this.playerController.stop();
-
-      const cam = this.cameras.main;
-      cam.fade(300, 0, 0, 0);
-      cam.once("camerafadeoutcomplete", () => {
-        this.scene.restart();
-      });
-    }, this);
-
+    this.cameras.main.setBounds(minX, minY, maxX - minX, maxY - minY);
+    this.physics.world.setBounds(minX, minY, maxX - minX, maxY - minY);
     this.cameras.main.startFollow(this.playerController.sprite, true, 0.1, 0.1);
+    this.cameras.main.setZoom(1.5);
+    this.cameras.main.setBackgroundColor("#000000");
 
     this.escPauseKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.collisionDebugKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.C);
-    this.tileOverlayToggleKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.I);
-    this.tileProbeToggleKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.P);
     this.escPauseKey?.on("down", this.openPauseMenu, this);
 
     this.add
-      .text(16, 16, `Level: ${this.currentLevel}\nESC -> Menu`, {
+      .text(16, 16, `Level: ${this.currentLevel}\nESC -> Menu | C -> Debug Collisioni`, {
         fontFamily: GameData.globals.defaultFont.key,
-        fontSize:   "14px",
-        color:      "#aaaacc",
+        fontSize: "14px",
+        color: "#aaaacc",
         backgroundColor: "#00000088",
         padding: { x: 8, y: 4 },
-      })
-      .setScrollFactor(0)
-      .setDepth(100);
-
-    this.add
-      .text(16, 48, "C -> collision debug  |  I -> full tile debug  |  P -> coords (light)", {
-        fontFamily: GameData.globals.defaultFont.key,
-        fontSize:   "11px",
-        color:      "#666688",
-        backgroundColor: "#00000066",
-        padding: { x: 6, y: 3 },
       })
       .setScrollFactor(0)
       .setDepth(100);
@@ -151,18 +188,11 @@ export default class GamePlay extends Phaser.Scene {
       this.escPauseKey?.off("down", this.openPauseMenu, this);
       this.escPauseKey = undefined;
       this.collisionDebugKey = undefined;
-      this.tileOverlayToggleKey = undefined;
-      this.tileProbeToggleKey = undefined;
-      this.tileOverlayObjects.forEach(o => o.destroy());
-      this.tileOverlayObjects = [];
-      this.tileProbeMode = false;
-      this.clearHoverPanelAndListenersIfUnused();
+      this.tileDebugGraphics?.destroy();
     });
 
     console.log(
-      `[GamePlay] Level ${this.currentLevel} -- ${map.width}x${map.height} tiles` +
-      ` -- ${this.dungeonResult.dungeon.rooms.length} rooms` +
-      ` -- theme: ${GameData.dungeon.defaultTheme}`
+      `[GamePlay] Level ${this.currentLevel}`
     );
   }
 
@@ -173,180 +203,45 @@ export default class GamePlay extends Phaser.Scene {
       this.toggleCollisionDebug();
     }
 
-    if (this.tileOverlayToggleKey != null && Phaser.Input.Keyboard.JustDown(this.tileOverlayToggleKey)) {
-      this.toggleTileIndexOverlay();
-    }
-    if (this.tileProbeToggleKey != null && Phaser.Input.Keyboard.JustDown(this.tileProbeToggleKey)) {
-      this.toggleTileProbeMode();
-    }
-
     this.playerController.update();
   }
 
   private toggleCollisionDebug(): void {
-      this.debugMode = !this.debugMode;
-      const { groundLayer, stuffLayer } = this.dungeonResult;
+    this.debugMode = !this.debugMode;
+    
+    // Trova tutti i layer dinamicamente
+    const currentLayers = this.children.list.filter(c => c instanceof Phaser.Tilemaps.TilemapLayer) as Phaser.Tilemaps.TilemapLayer[];
 
-      if (this.debugMode) {
-        this.physics.world.drawDebug = true;
-        this.physics.world.createDebugGraphic();
-
-        this.tileDebugGraphics = this.add.graphics().setDepth(50);
-        groundLayer.renderDebug(this.tileDebugGraphics, {
-          tileColor:         null,
-          collidingTileColor: new Phaser.Display.Color(255, 60, 60, 120),
-          faceColor:          new Phaser.Display.Color(255, 120, 0, 255),
-        });
-        stuffLayer.renderDebug(this.tileDebugGraphics, {
-          tileColor:         null,
-          collidingTileColor: new Phaser.Display.Color(255, 200, 0, 120),
-          faceColor:          new Phaser.Display.Color(255, 255, 0, 255),
-        });
+    if (this.debugMode) {
+      this.physics.world.drawDebug = true;
+      this.physics.world.createDebugGraphic();
+      
+      if (!this.tileDebugGraphics) {
+          this.tileDebugGraphics = this.add.graphics().setDepth(50);
       } else {
-        this.physics.world.drawDebug = false;
-        this.physics.world.debugGraphic?.clear();
-        this.physics.world.debugGraphic?.destroy();
-        this.tileDebugGraphics?.destroy();
-        this.tileDebugGraphics = undefined;
-      }
-  }
-
-  private toggleTileIndexOverlay(): void {
-      if (this.tileOverlayObjects.length > 0) {
-        this.tileOverlayObjects.forEach(o => o.destroy());
-        this.tileOverlayObjects = [];
-        this.clearHoverPanelAndListenersIfUnused();
-        return;
+          this.tileDebugGraphics.clear();
       }
 
-      // Full debug supersedes light probe mode.
-      this.tileProbeMode = false;
+      currentLayers.forEach((layer, i) => {
+        // Cambiamo i colori in base all'indice per distinguerli
+        const rHue = (100 * (i + 1)) % 255;
+        const gHue = (50 * (i + 1)) % 255;
+        const bHue = (150 * (i + 1)) % 255;
 
-      const { groundLayer, stuffLayer } = this.dungeonResult;
-      const ts = groundLayer.tileset[0].tileWidth;
-
-      const tileGroupColor = (idx: number): number => {
-        if (idx === 2 || idx === 3 || idx === 4)              return 0xff6600; // top wall cap
-        if (idx === 23 || idx === 24 || idx === 25)           return 0xaaaadd; // top wall body
-        if (idx >= 42 && idx <= 46)                           return 0x2266bb; // floor
-        if (idx === 85 || idx === 86 || idx === 87)           return 0x00ffaa; // cap row angoli
-        if (idx === 105 || idx === 106 || idx === 108 || idx === 109) return 0xff44ff; // door frame top
-        if (idx === 126 || idx === 130)                       return 0x4499ff; // side walls
-        if (idx === 147 || idx === 148 || idx === 150 || idx === 151) return 0xffee00; // door frame bottom
-        if (idx === 169 || idx === 170 || idx === 171)        return 0xff3333; // bottom wall
-        if (idx === 124)                                       return 0xffaa00; // stairs
-        return 0xffffff;
-      };
-
-      const g = this.add.graphics().setDepth(59);
-      this.tileOverlayObjects.push(g);
-
-      groundLayer.forEachTile((tile) => {
-        if (tile.index < 0) return;
-        const wx = tile.pixelX;
-        const wy = tile.pixelY;
-        const color = tileGroupColor(tile.index);
-        g.fillStyle(color, 0.25);
-        g.fillRect(wx, wy, ts, ts);
-        g.lineStyle(1, color, 0.55);
-        g.strokeRect(wx, wy, ts, ts);
+        layer.renderDebug(this.tileDebugGraphics!, {
+          tileColor: null,
+          collidingTileColor: new Phaser.Display.Color(rHue, gHue, bHue, 120),
+          faceColor: new Phaser.Display.Color(255, 120, 0, 255),
+        });
       });
-
-      stuffLayer.forEachTile((tile) => {
-        if (tile.index < 0) return;
-        const wx = tile.pixelX;
-        const wy = tile.pixelY;
-        g.fillStyle(0xffff44, 0.25);
-        g.fillRect(wx, wy, ts, ts);
-      });
-
-      this.ensureHoverPanel();
-  }
-
-  private toggleTileProbeMode(): void {
-    this.tileProbeMode = !this.tileProbeMode;
-
-    if (this.tileProbeMode) {
-      // Light mode should not render the heavy full overlay.
-      if (this.tileOverlayObjects.length > 0) {
-        this.tileOverlayObjects.forEach(o => o.destroy());
-        this.tileOverlayObjects = [];
-      }
-      this.ensureHoverPanel();
-      return;
+    } else {
+      this.physics.world.drawDebug = false;
+      this.physics.world.debugGraphic?.clear();
+      this.physics.world.debugGraphic?.destroy();
+      this.tileDebugGraphics?.clear();
+      this.tileDebugGraphics?.destroy();
+      this.tileDebugGraphics = undefined;
     }
-
-    this.clearHoverPanelAndListenersIfUnused();
-  }
-
-  private ensureHoverPanel(): void {
-    if (!this.hoverInfoPanel) {
-      this.hoverInfoPanel = this.add.text(8, this.scale.height - 8, "— hover su un tile —", {
-        fontFamily: "monospace",
-        fontSize: "12px",
-        color: "#00ffaa",
-        backgroundColor: "#000000cc",
-        padding: { x: 8, y: 4 },
-      })
-        .setScrollFactor(0)
-        .setDepth(200)
-        .setOrigin(0, 1);
-    }
-    this.input.off("pointermove", this.onTileHover, this);
-    this.input.off("pointerdown", this.onTileCopy, this);
-    this.input.on("pointermove", this.onTileHover, this);
-    this.input.on("pointerdown", this.onTileCopy, this);
-  }
-
-  private clearHoverPanelAndListenersIfUnused(): void {
-    if (this.tileOverlayObjects.length > 0 || this.tileProbeMode) {
-      return;
-    }
-    this.hoverInfoPanel?.destroy();
-    this.hoverInfoPanel = undefined;
-    this.input.off("pointermove", this.onTileHover, this);
-    this.input.off("pointerdown", this.onTileCopy, this);
-  }
-
-  private onTileHover(pointer: Phaser.Input.Pointer): void {
-    if (!this.hoverInfoPanel) return;
-    const { groundLayer, stuffLayer } = this.dungeonResult;
-    const worldX = pointer.worldX;
-    const worldY = pointer.worldY;
-
-    const gt = groundLayer.getTileAtWorldXY(worldX, worldY);
-    const st = stuffLayer.getTileAtWorldXY(worldX, worldY);
-
-    const tileX = gt ? gt.x : Math.floor(worldX / groundLayer.tileset[0].tileWidth);
-    const tileY = gt ? gt.y : Math.floor(worldY / groundLayer.tileset[0].tileHeight);
-
-    const sIdx = st && st.index >= 0 ? String(st.index) : "—";
-
-    const cell = (dx: number, dy: number, center = false): string => {
-      const t = groundLayer.getTileAt(tileX + dx, tileY + dy);
-      const idx = t && t.index >= 0 ? String(t.index) : "·";
-      const padded = idx.padStart(3);
-      return center ? `[${padded}]` : ` ${padded} `;
-    };
-
-    this.hoverInfoPanel.setText([
-      `grid (${tileX}, ${tileY})   stuff: [${sIdx}]`,
-      `${cell(-1,-1)} ${cell(0,-1)} ${cell(1,-1)} ${cell(2,-1)}`,
-      `${cell(-1, 0)} ${cell(0, 0, true)} ${cell(1, 0)} ${cell(2, 0)}`,
-      `${cell(-1, 1)} ${cell(0, 1)} ${cell(1, 1)} ${cell(2, 1)}`,
-      `${cell(-1, 2)} ${cell(0, 2)} ${cell(1, 2)} ${cell(2, 2)}`,
-    ].join("\n"));
-  }
-
-  private onTileCopy(): void {
-    if (!this.hoverInfoPanel) return;
-    const text = this.hoverInfoPanel.text;
-    navigator.clipboard?.writeText(text).catch(() => {});
-    const prev = this.hoverInfoPanel.style.color;
-    this.hoverInfoPanel.setColor("#ffffff").setBackgroundColor("#007700cc");
-    this.time.delayedCall(600, () => {
-      this.hoverInfoPanel?.setColor(prev).setBackgroundColor("#000000cc");
-    });
   }
 
   private openPauseMenu(): void {
