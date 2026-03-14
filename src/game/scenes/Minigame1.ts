@@ -369,14 +369,15 @@ private drawBackground() {
       bottom: { x: number; y: number }[];
     }
   ): { leftSlots: number[]; rightSlots: number[]; topSlots: number[]; bottomSlots: number[] } {
+    const targetIndices = Array.from({ length: SOCKET_COUNT }, (_, i) => i);
     let best: { leftSlots: number[]; rightSlots: number[]; topSlots: number[]; bottomSlots: number[] } | null = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
     for (let attempt = 0; attempt < 280; attempt++) {
       const leftSlots = slotsFactory();
       const topSlots = slotsFactory();
-      const rightSlots = this.findSafePermutation([0, 1, 2, 3, 4], leftSlots, "left", "right", sidePoints);
-      const bottomSlots = this.findSafePermutation([0, 1, 2, 3, 4], topSlots, "top", "bottom", sidePoints);
+      const rightSlots = this.findSafePermutation(targetIndices, leftSlots, "left", "right", sidePoints);
+      const bottomSlots = this.findSafePermutation(targetIndices, topSlots, "top", "bottom", sidePoints);
 
       const scoreA = this.socketCollisionScore(rightSlots, leftSlots, "left", "right", sidePoints);
       const scoreB = this.socketCollisionScore(bottomSlots, topSlots, "top", "bottom", sidePoints);
@@ -401,10 +402,10 @@ private drawBackground() {
     }
 
     return best ?? {
-      leftSlots: [0, 1, 2, 3, 4],
-      rightSlots: [1, 2, 3, 4, 0],
-      topSlots: [0, 1, 2, 3, 4],
-      bottomSlots: [2, 3, 4, 0, 1],
+      leftSlots: [0, 1, 2, 3],
+      rightSlots: [1, 2, 3, 0],
+      topSlots: [0, 1, 2, 3],
+      bottomSlots: [2, 3, 0, 1],
     };
   }
 
@@ -842,7 +843,7 @@ private drawBackground() {
   // ─── Connection logic ────────────────────────────────────────────────────────
 
   private tryConnect(wire: WireState) {
-  const target = wire.socketB;
+  const target = wire.activeTarget;
   const dist = Phaser.Math.Distance.Between(wire.freeX, wire.freeY, target.x, target.y);
   const snapRadius = this.s(42) + 8;
 
