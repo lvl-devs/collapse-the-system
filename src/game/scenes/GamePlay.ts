@@ -47,9 +47,9 @@ export default class GamePlay extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.RESUME, this.resumeCurrentLevelMusic, this);
 
     // Mappatura tileset standard (opzionale, MapProcessor prova a indovinare)
+    // Mappatura tileset standard
     const TS_MAP: Record<string, string> = {
         "home": "tileset-cyber",
-        "objects": "server-rack-closed"
     };
 
     const mapData = MapProcessor.processMap(this, "static-map", TS_MAP);
@@ -91,29 +91,44 @@ export default class GamePlay extends Phaser.Scene {
     });
 
     // --- RENDERING OGGETTI E COLLISIONI ---
-    map.getObjectLayer("objects")?.objects.forEach(obj => {
+    map.objects.forEach(layer => {
+        layer.objects.forEach(obj => {
         // Logica versatile per gli oggetti:
         // Se ha un GID (è un tile object), proviamo a renderizzarlo
         if (obj.gid) {
             // Cerchiamo il nome della texture associata al tileset del GID
             const tileset = map.tilesets.find(t => obj.gid! >= t.firstgid && obj.gid! < t.firstgid + (t as any).tileCount);
             if (tileset) {
-                const textureKey = TS_MAP[tileset.name] || tileset.name;
-                const sprite = this.add.sprite(obj.x!, obj.y!, textureKey);
-                sprite.setOrigin(0, 1);
+                // Per i "collection of images" tilesets, dobbiamo trovare la texture specifica
+                let textureKey = TS_MAP[tileset.name] || tileset.name;
                 
-                // Gestione depth e collisioni dinamiche
-                const depth = MapProcessor.getProperty(obj, "depth") || 5;
-                sprite.setDepth(depth);
-                
-                const hasCollision = MapProcessor.getProperty(obj, "collision") !== false;
-                if (hasCollision) {
-                    this.physics.add.existing(sprite, true);
-                    this.physics.add.collider(this.playerController.sprite, sprite);
+                // Se il tileset ha una definizione per ogni tile (come 'objects' o 'doors')
+                const tileData = (tileset as any).tileData;
+                const localId = obj.gid! - tileset.firstgid;
+                if (tileData && tileData[localId] && tileData[localId].image) {
+                    const imageName = tileData[localId].image;
+                    // Estraiamo il nome del file senza estensione e cartella come fallback per la chiave
+                    const parts = imageName.split('/');
+                    textureKey = parts[parts.length - 1].split('.')[0];
+                }
+
+                if (this.textures.exists(textureKey)) {
+                    const sprite = this.add.sprite(obj.x!, obj.y!, textureKey);
+                    sprite.setOrigin(0, 1);
+                    
+                    // Gestione depth e collisioni dinamiche
+                    const depth = MapProcessor.getProperty(obj, "depth") || 5;
+                    sprite.setDepth(depth);
+                    const hasCollision = MapProcessor.getProperty(obj, "collision") !== false;
+                    if (hasCollision) {
+                        this.physics.add.existing(sprite, true);
+                        this.physics.add.collider(this.playerController.sprite, sprite);
+                    }
                 }
             }
         }
     });
+});
 
     // Collisioni su tutti i layer base processati
     layers.forEach(l => this.physics.add.collider(this.playerController.sprite, l));

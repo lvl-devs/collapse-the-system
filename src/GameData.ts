@@ -105,10 +105,17 @@ export const GameData: GameDataType = {
     { name: "tileset-void", path: "/tilemaps/home.png" },
     { name: "server-rack-closed", path: "/tilemaps/other-objects/server-rack-closed.png" },
     { name: "server-rack-open", path: "/tilemaps/other-objects/server-rack-open.png" },
+    { name: "door-closed", path: "/tilemaps/doors/front/door-closed.png" },
+    { name: "door-open", path: "/tilemaps/doors/front/door-open.png" },
+    { name: "door", path: "/tilemaps/doors/front/door.png" },
+    { name: "left-side-doors-closed", path: "/tilemaps/doors/side/left-side-doors-closed.png" },
+    { name: "left-side-doors-open", path: "/tilemaps/doors/side/left-side-doors-open.png" },
+    { name: "right-side-doors-closed", path: "/tilemaps/doors/side/right-side-doors-closed.png" },
+    { name: "right-side-doors-open", path: "/tilemaps/doors/side/right-side-doors-open.png" },
   ],
 
   tilemaps: [
-    { key: "static-map", path: "/tilemaps/map-agency.json" }
+    { key: "static-map", path: "/tilemaps/map.json" }
   ],
   atlas: [],
   spritesheets: [
