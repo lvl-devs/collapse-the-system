@@ -123,6 +123,27 @@ export default class Minigame5 extends Phaser.Scene {
 
     const { width, height } = this.scale;
 
+    // ─── Exit X ─────────────────────────────────────
+const exitX = this.add
+  .text(width - 25, 25, "X", {
+    fontFamily: "Pixelify Sans", 
+    fontSize: "42px",
+    color: "#ffffff",
+    fontStyle: "bold",
+  })
+  .setOrigin(1, 0)
+  .setDepth(100)
+  .setInteractive({ useHandCursor: true });
+
+exitX.on("pointerdown", () => {
+  this.stopMovementSfx();
+  this.scene.stop();
+  this.scene.resume("GamePlay");
+});
+
+exitX.on("pointerover", () => exitX.setScale(1.15));
+exitX.on("pointerout", () => exitX.setScale(1));
+
     this.scannerX = Math.round(width * 0.5);
     // Keep scanner centered, while placing the moving belt in the lower tunnel slot.
     this.scannerY = this.offsetY(this.conveyorBeltY - 116);
