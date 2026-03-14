@@ -10,6 +10,8 @@ import GamePlay from "./game/scenes/GamePlay";
 import Options from "./game/scenes/Options";
 import Credits from "./game/scenes/Credits";
 import PauseMenu from "./game/scenes/PauseMenu";
+import MiniGame6 from "./game/scenes/MiniGame-6";
+import MiniGame4 from "./game/scenes/MiniGame-4";
 import Minigame1 from "./game/scenes/Minigame1";
 import Minigame2 from "./game/scenes/Minigame2";
 import Minigame3 from "./game/scenes/Minigame3";
@@ -40,6 +42,8 @@ window.addEventListener("load", () => {
       Options,
       Credits,
       PauseMenu,
+      MiniGame6,
+      MiniGame4
       Minigame1,
       Minigame2,
       Minigame3,

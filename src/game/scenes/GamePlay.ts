@@ -1,112 +1,82 @@
 import Phaser from "phaser";
-import { GameData } from "../../GameData";
-import MapProcessor from "../systems/MapProcessor";
-import AssetPipeline from "../systems/AssetPipeline";
-import MusicManager from "../audio/MusicManager";
-import SfxManager from "../audio/SfxManager";
-import LevelStorage from "../systems/LevelStorage";
-import CharacterController, { createKeyboardMovementInput } from "../entities/CharacterController";
-
-const PLAYER_SPEED = 125;
-const STEP_SFX_KEY = "step-sfx";
-const STEP_SFX_RATE = 1.1;
-const OBJECT_TOP_DEPTH = 1000;
-const DOOR_INTERACT_DISTANCE = 72;
-const DOOR_HINT_TEXT = "Premi B per aprire";
-const DOOR_OBJECT_OPEN_BY_CLOSED: Record<string, string> = {
-  "door": "door-open",
-  "door-closed": "door-open",
-  "left-side-doors-closed": "left-side-doors-open",
-  "right-side-doors-closed": "right-side-doors-open",
-  "left-side-door-closed": "left-side-door-open",
-  "right-side-door-closed": "right-side-door-open",
-};
 
 export default class GamePlay extends Phaser.Scene {
-  private static readonly LEVEL_MUSIC_BY_LEVEL: Record<number, string> = {
-    1: "level-1-theme",
-  };
 
-  private playerController!: CharacterController;
-  private hasPlayerReachedStairs = false;
-  private currentLevel = 1;
-  private escPauseKey?: Phaser.Input.Keyboard.Key;
-  private collisionDebugKey?: Phaser.Input.Keyboard.Key;
-  private debugMode = false;
-  private tileDebugGraphics?: Phaser.GameObjects.Graphics;
-  private currentLevelMusicKey?: string;
-  private pausedSfxDuringPause: Phaser.Sound.BaseSound[] = [];
-  private isAudioPausedForMenu = false;
-  private isStepSfxPlaying = false;
-  private doorInteractKey?: Phaser.Input.Keyboard.Key;
-  private doorLayers: Phaser.Tilemaps.TilemapLayer[] = [];
-  private closedToOpenDoorIndex = new Map<number, number>();
-  private doorObjectEntries: Array<{ sprite: Phaser.GameObjects.Sprite; openTextureKey: string }> = [];
-  private doorHintText?: Phaser.GameObjects.Text;
-
-  private resolveTextureKeyFromImage(imageName: string, fallbackKey: string): string {
-    const fileName = imageName.split(/[/\\]/).pop() ?? "";
-    const baseName = fileName.replace(/\.[^/.]+$/, "");
-    const normalized = baseName.replace(/_/g, "-").toLowerCase();
-
-    const aliasMap: Record<string, string> = {
-      "left-side-door-closed": "left-side-doors-closed",
-      "left-side-door-open": "left-side-doors-open",
-      "right-side-door-closed": "right-side-doors-closed",
-      "right-side-door-open": "right-side-doors-open",
-    };
-
-    const candidate = aliasMap[normalized] ?? normalized;
-    if (this.textures.exists(candidate)) {
-      return candidate;
-    }
-
-    if (this.textures.exists(baseName)) {
-      return baseName;
-    }
-
-    return fallbackKey;
-  }
-
-  private getOrCreateTilesetFrame(
-    textureKey: string,
-    tileset: Phaser.Tilemaps.Tileset,
-    localTileId: number,
-  ): string | undefined {
-    const texture = this.textures.get(textureKey);
-    if (!texture) {
-      return undefined;
-    }
-
-    const frameName = `tileset-${tileset.name}-${localTileId}`;
-    if (texture.has(frameName)) {
-      return frameName;
-    }
-
-    const image = texture.getSourceImage() as HTMLImageElement | undefined;
-    if (!image || image.width <= 0 || image.height <= 0) {
-      return undefined;
-    }
-
-    const tileWidth = tileset.tileWidth;
-    const tileHeight = tileset.tileHeight;
-    const margin = (tileset as any).tileMargin ?? (tileset as any).margin ?? 0;
-    const spacing = (tileset as any).tileSpacing ?? (tileset as any).spacing ?? 0;
-    const computedColumns = Math.max(1, Math.floor((image.width - margin * 2 + spacing) / (tileWidth + spacing)));
-    const columns = (tileset as any).columns ?? computedColumns;
-    const col = localTileId % columns;
-    const row = Math.floor(localTileId / columns);
-    const frameX = margin + col * (tileWidth + spacing);
-    const frameY = margin + row * (tileHeight + spacing);
-
-    texture.add(frameName, 0, frameX, frameY, tileWidth, tileHeight);
-    return frameName;
-  }
+  private canOpenPause = true;
 
   constructor() {
-    super({ key: "GamePlay" });
+    super("GamePlay");
   }
 
+  create() {
+
+    this.canOpenPause = true;
+
+    const { width, height } = this.scale;
+
+    this.add
+      .text(width / 2, height / 2, "GAMEPLAY\nPress ESC to pause\nPress E for MiniGame", {
+        fontFamily: "Pixelify Sans",
+        fontSize: "58px",
+        color: "#70fdc2",
+        align: "center",
+      })
+      .setOrigin(0.5);
+
+
+    // -------- ESC (PAUSE MENU) --------
+
+    const onEscPress = () => {
+      console.log("[GamePlay] ESC pressed");
+
+      if (!this.canOpenPause) {
+        return;
+      }
+
+      this.canOpenPause = false;
+
+      if (this.scene.isSleeping("PauseMenu")) {
+        this.scene.wake("PauseMenu", { parentSceneKey: this.scene.key });
+      } else {
+        this.scene.launch("PauseMenu", { parentSceneKey: this.scene.key });
+      }
+
+      this.scene.pause();
+    };
+
+
+    // -------- E (MINIGAME) --------
+
+    const onEPress = () => {
+      console.log("[GamePlay] Opening MiniGame");
+
+      this.scene.start("MiniGame4"); // cambia scena completamente
+    };
+
+
+    // -------- RESUME --------
+
+    const onResume = () => {
+      console.log("[GamePlay] resumed");
+      this.canOpenPause = true;
+      this.input.keyboard?.resetKeys();
+    };
+
+
+    // -------- CONTROLLI --------
+
+    this.input.keyboard?.on("keydown-ESC", onEscPress);
+    this.input.keyboard?.on("keydown-E", onEPress);
+
+    this.events.on(Phaser.Scenes.Events.RESUME, onResume);
+
+
+    // -------- CLEANUP --------
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+
+      this.input.keyboard?.off("keydown-ESC", onEscPress);
+      this.input.keyboard?.off("keydown-E", onEPress);
   private configureDoorInteractions(
     map: Phaser.Tilemaps.Tilemap,
     layers: Phaser.Tilemaps.TilemapLayer[],
@@ -476,8 +446,11 @@ export default class GamePlay extends Phaser.Scene {
     );
   }
 
-  update() {
-    if (this.hasPlayerReachedStairs) return;
+      this.events.off(Phaser.Scenes.Events.RESUME, onResume);
+
+    });
+
+  }
 
     if (this.collisionDebugKey != null && Phaser.Input.Keyboard.JustDown(this.collisionDebugKey)) {
       this.toggleCollisionDebug();
