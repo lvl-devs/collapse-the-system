@@ -70,8 +70,6 @@ private dotH = 0;
     const { width, height } = this.scale;
     this.createExitButton();
 
-    this.cameras.main.setBackgroundColor("#000000");
-
     // ───────────────── B O M B A ─────────────────
     this.bombCase = this.add.image(width * 0.34, height * 0.52, "valigia bombaaa 1");
 

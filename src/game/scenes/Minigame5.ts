@@ -124,7 +124,6 @@ export default class Minigame5 extends Phaser.Scene {
     this.resetRoundState();
 
     const { width, height } = this.scale;
-    this.cameras.main.setBackgroundColor("#05070b");
 
     this.scannerX = Math.round(width * 0.5);
     // Keep scanner centered, while placing the moving belt in the lower tunnel slot.
