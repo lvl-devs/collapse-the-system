@@ -10,6 +10,7 @@ import CharacterController, { createKeyboardMovementInput } from "../entities/Ch
 const PLAYER_SPEED = 250;
 const STEP_SFX_KEY = "step-sfx";
 const STEP_SFX_RATE = 1.1;
+const OBJECT_TOP_DEPTH = 1000;
 
 export default class GamePlay extends Phaser.Scene {
   private static readonly LEVEL_MUSIC_BY_LEVEL: Record<number, string> = {
@@ -186,8 +187,7 @@ export default class GamePlay extends Phaser.Scene {
                     // console.log(`[Object Spawned] ${textureKey} at (${obj.x}, ${obj.y})`);
 
                     // Gestione depth e collisioni dinamiche
-                    const depth = MapProcessor.getProperty(obj, "depth") || 5;
-                    sprite.setDepth(depth);
+                    sprite.setDepth(OBJECT_TOP_DEPTH);
                     const hasCollision = MapProcessor.getProperty(obj, "collision") !== false;
                     if (hasCollision) {
                         this.physics.add.existing(sprite, false);
