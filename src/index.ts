@@ -1,6 +1,7 @@
 import "phaser";
 import { GameData } from "./GameData";
 
+import Intro from "./game/scenes/Intro";
 import Preloader from "./game/scenes/Preloader";
 import Boot from "./game/scenes/Boot";
 import Menu from "./game/scenes/Menu";
@@ -15,6 +16,16 @@ import Scene2 from "./game/scenes/scene-2";
 import Scene3 from "./game/scenes/scene-3";
 import Scene4 from "./game/scenes/scene-4";
 
+import TerminalScene from "./game/scenes/TerminalScene";
+import MiniGame6 from "./game/scenes/MiniGame-6";
+import MiniGame4 from "./game/scenes/MiniGame-4";
+import Minigame1 from "./game/scenes/Minigame1";
+import Minigame2 from "./game/scenes/Minigame2";
+import Minigame3 from "./game/scenes/Minigame3";
+import Minigame4 from "./game/scenes/Minigame4";
+import Minigame5 from "./game/scenes/Minigame5";
+import Minigame7 from "./game/scenes/Minigame7";
+import Minigame9 from "./game/scenes/Minigame9";
 
 window.addEventListener("load", () => {
   const config: Phaser.Types.Core.GameConfig = {
@@ -29,6 +40,7 @@ window.addEventListener("load", () => {
       height: window.innerHeight,
     },
     scene: [
+      Intro,
       Preloader,
       Boot,
       MenuBackdrop,
@@ -42,6 +54,16 @@ window.addEventListener("load", () => {
       Scene2,
       Scene3,
       Scene4
+      TerminalScene,
+      MiniGame6,
+      MiniGame4,
+      Minigame1,
+      Minigame2,
+      Minigame3,
+      Minigame4,
+      Minigame5,
+      Minigame7,
+      Minigame9,
     ],
     physics: {
       default: "arcade",
