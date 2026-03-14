@@ -7,7 +7,7 @@ import SfxManager from "../audio/SfxManager";
 import LevelStorage from "../systems/LevelStorage";
 import CharacterController, { createKeyboardMovementInput } from "../entities/CharacterController";
 
-const PLAYER_SPEED = 250;
+const PLAYER_SPEED = 125;
 const STEP_SFX_KEY = "step-sfx";
 const STEP_SFX_RATE = 1.1;
 const OBJECT_TOP_DEPTH = 1000;
@@ -217,15 +217,14 @@ export default class GamePlay extends Phaser.Scene {
     this.cameras.main.setBounds(minX, minY, maxX - minX, maxY - minY);
     this.physics.world.setBounds(minX, minY, maxX - minX, maxY - minY);
     this.cameras.main.startFollow(this.playerController.sprite, true, 0.1, 0.1);
-    this.cameras.main.setZoom(1.3);
-    this.cameras.main.setBackgroundColor("#000000");
+    this.cameras.main.setZoom(1.1);
 
 
     this.escPauseKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.collisionDebugKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.C);
     this.escPauseKey?.on("down", this.openPauseMenu, this);
 
-    this.add
+    /* this.add
       .text(16, 16, `Level: ${this.currentLevel}\nESC -> Menu | C -> Debug Collisioni`, {
         fontFamily: GameData.globals.defaultFont.key,
         fontSize: "14px",
@@ -234,7 +233,7 @@ export default class GamePlay extends Phaser.Scene {
         padding: { x: 8, y: 4 },
       })
       .setScrollFactor(0)
-      .setDepth(100);
+      .setDepth(100); */
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.PAUSE, this.pauseCurrentLevelAudio, this);
