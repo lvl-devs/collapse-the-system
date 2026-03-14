@@ -348,8 +348,18 @@ export default class GamePlay extends Phaser.Scene {
     // Fermiamo l'audio come quando andiamo in pausa
     this.pauseCurrentLevelAudio();
     
-    // Lanciamo la nuova scena del terminale o server
-    this.scene.launch("TerminalScene", { parentSceneKey: this.scene.key, type: nearby.type });
+    if (nearby.type === "west-corridor") {
+       this.scene.launch("Minigame1", { parentSceneKey: this.scene.key });
+    } else if (nearby.type === "pc-west") {
+       this.scene.launch("Minigame2", { parentSceneKey: this.scene.key });
+    } else if (nearby.type === "server-north") {
+       this.scene.launch("Minigame3", { parentSceneKey: this.scene.key });
+    } else if (nearby.type === "pc-east") {
+       this.scene.launch("Minigame4", { parentSceneKey: this.scene.key });
+    } else {
+       // Lanciamo la scena del terminale come fallback (per eventuali altri PC/Server generici)
+       this.scene.launch("TerminalScene", { parentSceneKey: this.scene.key, type: nearby.type });
+    }
     this.scene.pause();
   }
 
@@ -472,7 +482,17 @@ export default class GamePlay extends Phaser.Scene {
                     sprite.setFlip(flipX, flipY);
 
                     if (layer.name === "computers" || layer.name === "servers") {
-                       this.interactables.push({ target: sprite, type: layer.name === "computers" ? "pc" : "server" });
+                       let type = layer.name === "computers" ? "pc" : "server";
+                       
+                       // Distinguo in base alle coordinate per decidere il minigioco
+                       if (type === "pc") {
+                          if (obj.x < -200) type = "pc-west";
+                          else if (obj.x > 500) type = "pc-east";
+                       } else if (type === "server") {
+                          if (obj.y < -150) type = "server-north";
+                       }
+
+                       this.interactables.push({ target: sprite, type });
                     }
 
                     const objectDoorOpenTexture = DOOR_OBJECT_OPEN_BY_CLOSED[textureKey];
