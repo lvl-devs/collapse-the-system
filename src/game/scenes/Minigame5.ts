@@ -30,16 +30,19 @@ export default class Minigame5 extends Phaser.Scene {
   private readonly xrayCropY = 220;
   private readonly xrayCropWidth = 800;
   private readonly xrayCropHeight = 682;
-  private readonly xrayOffsetX = 130;
-  private readonly xrayOffsetY = -30;
-  private readonly xrayExitOffsetX = 198;
+  private readonly xrayOffsetX = 150;
+  private readonly xrayOffsetY = -40;
+  private readonly xrayExitOffsetX = 250;
   private readonly conveyorTileOffsetY = 262;
   private readonly conveyorScaleY = 10;
-  private readonly conveyorVisualOffsetY = -20;
+  private readonly conveyorVisualOffsetY = -35;
   private readonly conveyorCropInsetLeft = -120;
   private readonly conveyorCropInsetRight = -150;
   private readonly conveyorCropHeight = 163;
   private readonly conveyorScrollSpeed = -140;
+  private readonly gameplayOffsetY = 150;
+  private readonly hudTextOffsetY = -120;
+  private readonly resultTextOffsetY = -150;
   private readonly buttonsHalfGap = 60;
   private readonly buttonsCenterOffsetX = 125;
   private readonly buttonsOffsetYFromScanner = 125;
@@ -77,6 +80,10 @@ export default class Minigame5 extends Phaser.Scene {
     super("Minigame5");
   }
 
+  private offsetY(y: number): number {
+    return y + this.gameplayOffsetY;
+  }
+
   preload(): void {
     this.load.image("mg5-scanner-background", "images/minigame-5/scanner-background.png");
     this.load.image("mg5-conveyor-belt", "images/minigame-5/roller-conveyor.png");
@@ -111,8 +118,8 @@ export default class Minigame5 extends Phaser.Scene {
 
     this.scannerX = Math.round(width * 0.5);
     // Keep scanner centered, while placing the moving belt in the lower tunnel slot.
-    this.scannerY = this.conveyorBeltY - 116;
-    this.bagTrackY = this.conveyorBeltY + this.conveyorVisualOffsetY + 12;
+    this.scannerY = this.offsetY(this.conveyorBeltY - 116);
+    this.bagTrackY = this.offsetY(this.conveyorBeltY + this.conveyorVisualOffsetY + 12);
     this.decisionStopX = this.scannerX + this.xrayOffsetX;
     this.xrayEntryX = this.decisionStopX - Math.round(this.xrayPreviewWidth * 1.05);
 
@@ -124,7 +131,7 @@ export default class Minigame5 extends Phaser.Scene {
 
     this.add.rectangle(width / 2, height / 2, width, height, 0x030507, 0.2).setDepth(0.2);
     const conveyorHeight = this.conveyorCropHeight;
-    const conveyorY = this.conveyorBeltY + this.conveyorVisualOffsetY;
+    const conveyorY = this.offsetY(this.conveyorBeltY + this.conveyorVisualOffsetY);
     const conveyorClipWidth = Math.max(
       1,
       width - this.conveyorCropInsetLeft - this.conveyorCropInsetRight
@@ -147,18 +154,18 @@ export default class Minigame5 extends Phaser.Scene {
       .setScale(scannerZoom);
 
     this.statusText = this.add
-      .text(width / 2, 70, "Scan bags. STOP 'sus' bags. PASS numbered + bomb.", {
+      .text(width / 2, this.offsetY(70 + this.hudTextOffsetY), "Scan bags. STOP 'sus' bags. PASS numbered + bomb.", {
         fontFamily: this.uiFontFamily,
-        fontSize: "34px",
-        color: "#70fdc2",
+        fontSize: "40px",
+        color: "#fff",
       })
       .setOrigin(0.5);
 
     this.hintText = this.add
-      .text(width / 2, 108, "S = STOP | F = PASS", {
+      .text(width / 2, this.offsetY(108 + this.hudTextOffsetY), "S = STOP | F = PASS", {
         fontFamily: this.uiFontFamily,
         fontSize: "26px",
-        color: "#d7f6ff",
+        color: "#2e2e2e",
       })
       .setOrigin(0.5);
 
@@ -480,7 +487,7 @@ export default class Minigame5 extends Phaser.Scene {
       .setDepth(20);
 
     this.failTitleText = this.add
-      .text(width / 2, height / 2 - 42, "MISSION FAILED", {
+      .text(width / 2, this.offsetY(height / 2 - 42 + this.resultTextOffsetY), "MISSION FAILED", {
         fontFamily: this.uiFontFamily,
         fontSize: "56px",
         color: "#ff4d6d",
@@ -492,7 +499,7 @@ export default class Minigame5 extends Phaser.Scene {
       .setDepth(21);
 
     this.failReasonText = this.add
-      .text(width / 2, height / 2 + 26, reason, {
+      .text(width / 2, this.offsetY(height / 2 + 26 + this.resultTextOffsetY), reason, {
         fontFamily: this.uiFontFamily,
         fontSize: "28px",
         color: "#ffd6de",
@@ -541,7 +548,7 @@ export default class Minigame5 extends Phaser.Scene {
       .setDepth(20);
 
     this.successTitleText = this.add
-      .text(width / 2, height / 2 - 42, "MISSION SUCCESSFUL", {
+      .text(width / 2, this.offsetY(height / 2 - 42 + this.resultTextOffsetY), "MISSION SUCCESSFUL", {
         fontFamily: this.uiFontFamily,
         fontSize: "56px",
         color: "#46ff88",
@@ -553,7 +560,7 @@ export default class Minigame5 extends Phaser.Scene {
       .setDepth(21);
 
     this.successReasonText = this.add
-      .text(width / 2, height / 2 + 24, "Bomb bag passed.", {
+      .text(width / 2, this.offsetY(height / 2 + 24 + this.resultTextOffsetY), "Bomb bag passed.", {
         fontFamily: this.uiFontFamily,
         fontSize: "28px",
         color: "#b9ffe2",
