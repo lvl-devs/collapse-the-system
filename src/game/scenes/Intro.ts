@@ -22,6 +22,10 @@ export default class Intro extends Phaser.Scene {
   }
 
   create() {
+    const TOTAL_ANIMATION_MS = 2600;
+    const OUTRO_DURATION_MS = 520;
+    const OUTRO_DELAY_MS = TOTAL_ANIMATION_MS - OUTRO_DURATION_MS;
+
     const screenCenterX = this.cameras.main.worldView.x + this.cameras.main.width / 2;
     const screenCenterY = this.cameras.main.worldView.y + this.cameras.main.height / 2;
 
@@ -38,48 +42,40 @@ export default class Intro extends Phaser.Scene {
       targets: logo,
       alpha: 1,
       scale: targetScale * 1.1,
-      y: screenCenterY - 14,
+      y: screenCenterY - 20,
       angle: 0,
-      duration: 700,
-      ease: "Back.Out",
+      duration: 480,
+      ease: "Cubic.Out",
       onComplete: () => {
         this.tweens.add({
           targets: logo,
           scale: targetScale,
           y: screenCenterY,
-          duration: 450,
+          duration: 260,
           ease: "Sine.Out"
         });
 
         this.tweens.add({
           targets: logo,
-          y: screenCenterY - 8,
-          angle: 2,
-          duration: 800,
+          y: screenCenterY - 9,
+          angle: 2.3,
+          duration: 200,
           ease: "Sine.InOut",
           yoyo: true,
-          repeat: -1
+          repeat: 1
         });
 
-        this.tweens.add({
-          targets: logo,
-          scale: targetScale * 1.045,
-          duration: 760,
-          ease: "Sine.InOut",
-          yoyo: true,
-          repeat: -1
-        });
       }
     });
 
-    this.time.delayedCall(2500, () => {
+    this.time.delayedCall(OUTRO_DELAY_MS, () => {
       this.tweens.killTweensOf(logo);
       this.tweens.add({
         targets: logo,
         alpha: 0,
         scale: targetScale * 0.9,
-        y: screenCenterY + 18,
-        duration: 500,
+        y: screenCenterY + 20,
+        duration: OUTRO_DURATION_MS,
         ease: "Power2.In",
         onComplete: () => {
           this.scene.start("Preloader");
