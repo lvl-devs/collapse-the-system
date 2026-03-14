@@ -70,7 +70,7 @@ export const GameData: GameDataType = {
 
   menu: {
     items: [
-      { label: "Start Game", scene: "GamePlay" },
+      { label: "Start Game", scene: "Introduction" },
       { label: "Options", scene: "Options" },
       { label: "Credits", scene: "Credits" },
     ],
@@ -163,6 +163,8 @@ export const GameData: GameDataType = {
     { name: "policeman", path: "/spritesheets/policeman.png", width: 32, height: 45, frames: 12 }
   ],
   sounds: [
+    { name: "menuSelect", paths: ["/sounds/keypad_beep.mp3"] },
+    { name: "ui_click", paths: ["/sounds/keypad_beep.mp3"] },
     { name: "menu-theme", paths: ["/music/menu.mp3"] },
     { name: "level-1-theme", paths: ["/music/level-1.mp3"] },
     { name: "rain-sfx", paths: ["/sounds/rain.mp3"] },

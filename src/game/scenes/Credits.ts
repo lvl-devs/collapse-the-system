@@ -113,7 +113,7 @@ export default class Credits extends Phaser.Scene {
 
     // ✅ niente hover color/scale: resta statica
     this.backArrow.on("pointerdown", () => {
-      SfxManager.start(this, "ui_click", { volume: 0.6 });
+      SfxManager.start(this, "ui_click", { volume: 0.6 * (GameData.sfxVolume ?? 0.7) });
       this.scene.start("Menu");
     });
 

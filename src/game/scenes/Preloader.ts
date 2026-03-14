@@ -41,7 +41,7 @@ export default class Preloader extends Phaser.Scene {
   private loadAssets(){
     this.load.on("complete", () => {
       this.scene.stop(this);
-      this.scene.start("Boot");
+      this.scene.start("Menu");
     });
 
     AssetPipeline.preloadCritical(this);

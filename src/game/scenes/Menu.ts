@@ -15,10 +15,13 @@ export default class Menu extends Phaser.Scene {
 
   constructor(){ super({ key: "Menu" }); }
 
+  private canPlayUiSfx(): boolean {
+    return (GameData.sfxVolume ?? 0.7) > 0;
+  }
+
   private playSelectSfx(): void {
-    if (localStorage.getItem("soundEffectsEnabled") === "true") {
-      this.sound.play("menuSelect");
-    }
+    if (!this.canPlayUiSfx()) return;
+    SfxManager.start(this, "menuSelect", { volume: 0.6 * (GameData.sfxVolume ?? 0.7) });
   }
 
   create(){
@@ -87,26 +90,22 @@ export default class Menu extends Phaser.Scene {
     const onUp = () => {
       this._selectedIndex = (this._selectedIndex - 1 + this._menuItems.length) % this._menuItems.length;
       this.updateMenu();
-      if(localStorage.getItem("soundEffectsEnabled") === "true")
-        this.sound.play("menuSelect");
+      this.playSelectSfx();
     };
 
     const onDown = () => {
       this._selectedIndex = (this._selectedIndex + 1) % this._menuItems.length;
       this.updateMenu();
-      if(localStorage.getItem("soundEffectsEnabled") === "true")
-        this.sound.play("menuSelect");
+      this.playSelectSfx();
     };
 
     const onEnter = () => {
-      if(localStorage.getItem("soundEffectsEnabled") === "true")
-        this.sound.play("menuSelect");
+      this.playSelectSfx();
       this.selectItem(this._selectedIndex);
     };
 
     const onSpace = () => {
-      if(localStorage.getItem("soundEffectsEnabled") === "true")
-        this.sound.play("menuSelect");
+      this.playSelectSfx();
       this.selectItem(this._selectedIndex);
     };
 
@@ -134,11 +133,16 @@ export default class Menu extends Phaser.Scene {
   private selectItem(index: number){
     const item = GameData.menu.items[index];
     console.log("[Menu] selectItem - starting scene:", item.scene);
-    if (item.scene === "GamePlay") {
+    if (item.scene === "GamePlay" || item.scene === "Introduction") {
       LevelStorage.resetToFirstLevel();
       MusicManager.stop(this, Menu.MENU_MUSIC_KEY);
       SfxManager.stop(this, Menu.RAIN_SFX_KEY);
       this.scene.stop("MenuBackdrop");
+
+      if (item.scene === "Introduction") {
+        this.scene.start(item.scene);
+        return;
+      }
 
       const startGameplay = () => {
         this.scene.start(item.scene);
