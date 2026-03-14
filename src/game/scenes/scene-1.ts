@@ -39,10 +39,10 @@ agente della sicurezza  nell’aeroporto.
         this.load.image("scene1","images/scena-1.png");
         this.load.image("scene2","images/image1.png");
 
-        this.load.audio("voice1","sounds/Hacker-text-1.mp3");
-        this.load.audio("voice2","sounds/Hacker-text-2.mp3");
-        this.load.audio("voice3","sounds/Hacker-text-3.mp3");
-
+        this.load.audio("voice1","sounds/voice-hacker-1.mp3");
+        this.load.audio("voice2","sounds/voice-hacker-2.mp3");
+        this.load.audio("voice3","sounds/voice-hacker-3.mp3");
+        this.load.audio("voice4","sounds/voice-hacker-4.mp3");
     }
 
     create(){
