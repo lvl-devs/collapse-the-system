@@ -3,10 +3,13 @@ import { GameData } from "../../GameData";
 import MapProcessor from "../systems/MapProcessor";
 import AssetPipeline from "../systems/AssetPipeline";
 import MusicManager from "../audio/MusicManager";
+import SfxManager from "../audio/SfxManager";
 import LevelStorage from "../systems/LevelStorage";
 import CharacterController, { createKeyboardMovementInput } from "../entities/CharacterController";
 
 const PLAYER_SPEED = 250;
+const STEP_SFX_KEY = "step-sfx";
+const STEP_SFX_RATE = 1.1;
 
 export default class GamePlay extends Phaser.Scene {
   private static readonly LEVEL_MUSIC_BY_LEVEL: Record<number, string> = {
@@ -23,6 +26,7 @@ export default class GamePlay extends Phaser.Scene {
   private currentLevelMusicKey?: string;
   private pausedSfxDuringPause: Phaser.Sound.BaseSound[] = [];
   private isAudioPausedForMenu = false;
+  private isStepSfxPlaying = false;
 
   constructor() {
     super({ key: "GamePlay" });
@@ -143,6 +147,7 @@ export default class GamePlay extends Phaser.Scene {
       this.escPauseKey = undefined;
       this.collisionDebugKey = undefined;
       this.tileDebugGraphics?.destroy();
+      this.stopStepSfx();
     });
 
     console.log(
@@ -158,6 +163,7 @@ export default class GamePlay extends Phaser.Scene {
     }
 
     this.playerController.update();
+    this.updateStepSfx();
   }
 
   private toggleCollisionDebug(): void {
@@ -283,5 +289,39 @@ export default class GamePlay extends Phaser.Scene {
       }
     });
     this.pausedSfxDuringPause = [];
+  }
+
+  private updateStepSfx(): void {
+    const body = this.playerController.sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    if (!body) {
+      this.stopStepSfx();
+      return;
+    }
+
+    const isMoving = body.velocity.lengthSq() > 0;
+    if (isMoving) {
+      if (this.isStepSfxPlaying) {
+        return;
+      }
+
+      const sound = SfxManager.start(this, STEP_SFX_KEY, {
+        loop: true,
+        volume: GameData.sfxVolume ?? 0.7,
+        rate: STEP_SFX_RATE,
+      });
+      this.isStepSfxPlaying = Boolean(sound);
+      return;
+    }
+
+    this.stopStepSfx();
+  }
+
+  private stopStepSfx(): void {
+    if (!this.isStepSfxPlaying) {
+      return;
+    }
+
+    SfxManager.stop(this, STEP_SFX_KEY);
+    this.isStepSfxPlaying = false;
   }
 }

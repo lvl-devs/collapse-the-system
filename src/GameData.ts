@@ -119,7 +119,8 @@ export const GameData: GameDataType = {
   sounds: [
     { name: "menu-theme", paths: ["/music/menu.mp3"] },
     { name: "level-1-theme", paths: ["/music/level-1.mp3"] },
-    { name: "rain-sfx", paths: ["/sounds/rain.mp3"] }
+    { name: "rain-sfx", paths: ["/sounds/rain.mp3"] },
+    { name: "step-sfx", paths: ["/sounds/step.mp3"] }
   ],
   videos: [
     { name: 'bg-menu', path: '/videos/bg-menu.mp4' }
