@@ -1,8 +1,8 @@
 import Phaser from "phaser";
 
 type FrequencyData = {
-  value: number;   // solo parte decimale, es. 120
-  text: string;    // es. 252.120 MHz
+  value: number;
+  text: string;
 };
 
 export default class Minigame9 extends Phaser.Scene {
@@ -36,20 +36,29 @@ export default class Minigame9 extends Phaser.Scene {
   private downPressedFx?: Phaser.GameObjects.Image;
   private enterPressedFx?: Phaser.GameObjects.Image;
 
+  // ─── Cerchietti progresso ──────────────────────────────
+  private progressDots: Phaser.GameObjects.Graphics[] = [];
+  private successCount = 0;
+  private readonly TARGET_SUCCESSES = 5;
+
   // ─── UI / Stato ────────────────────────────────────────
   private infoText?: Phaser.GameObjects.Text;
   private resultText?: Phaser.GameObjects.Text;
+  private gameEnded = false;
+  private isLocked = false;
 
-  private readonly CHANGE_INTERVAL = 7000;
+  private readonly CHANGE_INTERVAL = 10000;
   private readonly MIN_DECIMAL = 80;
   private readonly MAX_DECIMAL = 182;
+
+  private dotW = 0;
+private dotH = 0;
 
   constructor() {
     super("Minigame9");
   }
 
   preload() {
-    // usa i nomi file che mi hai dato
     this.load.image("valigia bombaaa 1", "../assets/images/min8/bomb_case.png");
     this.load.image("TELECOMAND 1", "../assets/images/min8/TELECOMAND 1.png");
     this.load.image("UP_PRESSED 1", "../assets/images/min8/UP_PRESSED 1.png");
@@ -59,6 +68,7 @@ export default class Minigame9 extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    this.createExitButton();
 
     this.cameras.main.setBackgroundColor("#000000");
 
@@ -87,7 +97,6 @@ export default class Minigame9 extends Phaser.Scene {
         fontFamily: "DigitalDisco",
         fontSize: `${Math.max(18, Math.floor(this.bombScreenH * 0.44))}px`,
         color: "#ff2a2a",
-       // fontStyle: "bold",
       })
       .setOrigin(0.5);
 
@@ -110,7 +119,7 @@ export default class Minigame9 extends Phaser.Scene {
     {
       const scaleX = (width * 0.5) / this.remote.width;
       const scaleY = (height * 1.07) / this.remote.height;
-      const scale = Math.min(scaleX, scaleY );
+      const scale = Math.min(scaleX, scaleY);
       this.remote.setScale(scale);
     }
 
@@ -119,7 +128,6 @@ export default class Minigame9 extends Phaser.Scene {
     const remoteX = this.remote.x;
     const remoteY = this.remote.y;
 
-    // zona schermo verde del telecomando
     this.remoteScreenX = remoteX;
     this.remoteScreenY = remoteY - remoteH * 0.06;
     this.remoteScreenW = remoteW * 0.63;
@@ -129,13 +137,12 @@ export default class Minigame9 extends Phaser.Scene {
       .text(this.remoteScreenX, this.remoteScreenY, this.formatFrequency(this.remoteDecimal), {
         fontFamily: "DigitalDisco",
         fontSize: `${Math.max(16, Math.floor(this.remoteScreenH * 0.29))}px`,
-        color: "#d9ffd0",
-        //fontStyle: "bold",
+        color: "#13172A",
       })
       .setOrigin(0.5);
 
-    // overlay pulsanti "premuti"
     this.createRemoteEffects(remoteX, remoteY, remoteW, remoteH);
+    this.createProgressDots(remoteX, remoteY, remoteW, remoteH);
 
     // ────────────────── Testi UI ──────────────────
     this.infoText = this.add
@@ -151,11 +158,9 @@ export default class Minigame9 extends Phaser.Scene {
         fontFamily: "DigitalDisco",
         fontSize: "26px",
         color: "#ffffff",
-        //fontStyle: "bold",
       })
       .setOrigin(0.5);
 
-    // prima frequenza bomba
     this.changeBombFrequency();
     this.resetTimerBar();
 
@@ -163,6 +168,7 @@ export default class Minigame9 extends Phaser.Scene {
       delay: this.CHANGE_INTERVAL,
       loop: true,
       callback: () => {
+        if (this.gameEnded) return;
         this.changeBombFrequency();
         this.resetTimerBar();
       },
@@ -173,7 +179,7 @@ export default class Minigame9 extends Phaser.Scene {
   }
 
   update() {
-    if (!this.frequencyTimer || !this.timerBarFill || !this.timerBarBg) return;
+    if (!this.frequencyTimer || !this.timerBarFill || !this.timerBarBg || this.gameEnded) return;
 
     const progress = Phaser.Math.Clamp(
       this.frequencyTimer.getRemaining() / this.CHANGE_INTERVAL,
@@ -193,6 +199,8 @@ export default class Minigame9 extends Phaser.Scene {
   }
 
   private changeBombFrequency() {
+    if (this.gameEnded) return;
+
     this.currentBombFrequency = this.generateBombFrequency();
 
     if (this.bombFreqText) {
@@ -208,7 +216,6 @@ export default class Minigame9 extends Phaser.Scene {
       });
     }
 
-    // pulisco eventuale messaggio vecchio quando la bomba cambia frequenza
     if (this.resultText) {
       this.resultText.setText("");
     }
@@ -227,7 +234,6 @@ export default class Minigame9 extends Phaser.Scene {
   // Telecomando
   // ─────────────────────────────────────────────
   private createRemoteEffects(remoteX: number, remoteY: number, remoteW: number, remoteH: number) {
-    // stima posizioni pulsanti sul telecomando
     const upX = remoteX - remoteW * 0.20;
     const upY = remoteY + remoteH * 0.13;
 
@@ -250,12 +256,63 @@ export default class Minigame9 extends Phaser.Scene {
     this.enterPressedFx.setScale(enterScale).setAlpha(0);
   }
 
+  private createProgressDots(remoteX: number, remoteY: number, remoteW: number, remoteH: number) {
+  const total = this.TARGET_SUCCESSES;
+
+  this.dotW = remoteW * 0.09;
+  this.dotH = remoteH * 0.022;
+
+  const spacing = this.dotW * 1.28;
+
+  const centerX = remoteX;
+  const y = remoteY + remoteH * 0.002;
+
+  const startX = centerX - ((total - 1) * spacing) / 2;
+
+  this.progressDots.forEach(dot => dot.destroy());
+  this.progressDots = [];
+
+  for (let i = 0; i < total; i++) {
+    const dot = this.add.graphics();
+    dot.setPosition(startX + i * spacing, y);
+    this.progressDots.push(dot);
+  }
+
+  this.refreshProgressDots();
+}
+
+  private refreshProgressDots() {
+  for (let i = 0; i < this.progressDots.length; i++) {
+
+    const dot = this.progressDots[i];
+    dot.clear();
+
+    const isOn = i < this.successCount;
+
+    if (isOn) {
+      dot.fillStyle(0xdcd8cc, 1); // acceso
+    } else {
+      dot.fillStyle(0x0d4a16, 0.95); // spento
+    }
+
+    dot.fillRoundedRect(
+      -this.dotW / 2,
+      -this.dotH / 2,
+      this.dotW,
+      this.dotH,
+      4   // angoli leggermente arrotondati
+    );
+  }
+}
+
   private updateRemoteDisplay() {
     if (!this.remoteFreqText) return;
     this.remoteFreqText.setText(this.formatFrequency(this.remoteDecimal));
   }
 
   private increaseRemoteFrequency() {
+    if (this.gameEnded || this.isLocked) return;
+
     if (this.remoteDecimal < this.MAX_DECIMAL) {
       this.remoteDecimal++;
       this.updateRemoteDisplay();
@@ -265,6 +322,8 @@ export default class Minigame9 extends Phaser.Scene {
   }
 
   private decreaseRemoteFrequency() {
+    if (this.gameEnded || this.isLocked) return;
+
     if (this.remoteDecimal > this.MIN_DECIMAL) {
       this.remoteDecimal--;
       this.updateRemoteDisplay();
@@ -274,17 +333,36 @@ export default class Minigame9 extends Phaser.Scene {
   }
 
   private confirmFrequency() {
+    if (this.gameEnded || this.isLocked) return;
+
     this.flashButton(this.enterPressedFx);
 
     if (!this.resultText) return;
 
+    // blocco per evitare doppi input rapidissimi
+    this.isLocked = true;
+
     if (this.remoteDecimal === this.currentBombFrequency.value) {
-      this.resultText.setText("FREQUENCY LOCKED");
-      this.resultText.setColor("#5aff5a");
+      this.handleCorrectGuess();
     } else {
-      this.resultText.setText("WRONG FREQUENCY");
-      this.resultText.setColor("#ff5050");
+      this.handleWrongGuess();
     }
+
+    this.time.delayedCall(250, () => {
+      if (!this.gameEnded) {
+        this.isLocked = false;
+      }
+    });
+  }
+
+  private handleCorrectGuess() {
+    if (!this.resultText) return;
+
+    this.successCount = Math.min(this.successCount + 1, this.TARGET_SUCCESSES);
+    this.refreshProgressDots();
+
+    this.resultText.setText("FREQUENCY GUESS");
+    this.resultText.setColor("#5aff5a");
 
     this.tweens.add({
       targets: this.resultText,
@@ -294,6 +372,97 @@ export default class Minigame9 extends Phaser.Scene {
       yoyo: true,
       ease: "Quad.Out",
     });
+
+    // animazione sul nuovo pallino acceso
+    const dot = this.progressDots[this.successCount - 1];
+    if (dot) {
+      dot.setScale(1.35);
+      this.tweens.add({
+        targets: dot,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 140,
+        ease: "Back.Out",
+      });
+    }
+
+    if (this.successCount >= this.TARGET_SUCCESSES) {
+      this.completeGame();
+      return;
+    }
+
+    this.time.delayedCall(350, () => {
+      if (this.gameEnded) return;
+      this.changeBombFrequency();
+      this.resetTimerBar();
+      this.frequencyTimer?.reset({
+        delay: this.CHANGE_INTERVAL,
+        loop: true,
+        callback: () => {
+          if (this.gameEnded) return;
+          this.changeBombFrequency();
+          this.resetTimerBar();
+        },
+        callbackScope: this,
+      });
+    });
+  }
+
+  private handleWrongGuess() {
+    if (!this.resultText) return;
+
+    this.successCount = Math.max(0, this.successCount - 1);
+    this.refreshProgressDots();
+
+    this.resultText.setText("ERROR");
+    this.resultText.setColor("#ff5050");
+
+    this.tweens.add({
+      targets: this.resultText,
+      scaleX: 1.12,
+      scaleY: 1.12,
+      duration: 70,
+      yoyo: true,
+      repeat: 1,
+      ease: "Quad.Out",
+    });
+
+    this.shakeErrorScreen();
+  }
+
+  private shakeErrorScreen() {
+    const cam = this.cameras.main;
+
+    cam.shake(180, 0.008);
+
+    if (this.bombFreqText) {
+      this.tweens.add({
+        targets: this.bombFreqText,
+        x: this.bombScreenX + 3,
+        duration: 35,
+        yoyo: true,
+        repeat: 3,
+        onComplete: () => {
+          this.bombFreqText?.setX(this.bombScreenX);
+        },
+      });
+    }
+  }
+
+  private completeGame() {
+    this.gameEnded = true;
+    this.isLocked = true;
+
+    this.frequencyTimer?.remove(false);
+
+
+
+    if (this.infoText) {
+      this.infoText.setText("SUCCESS");
+      this.infoText.setColor("#ffffff");
+    }
+
+    if (this.timerBarFill) this.timerBarFill.width = 0;
   }
 
   private flashButton(target?: Phaser.GameObjects.Image) {
@@ -348,4 +517,43 @@ export default class Minigame9 extends Phaser.Scene {
   public getRemoteFrequencyValue(): number {
     return this.remoteDecimal;
   }
+  
+  private createExitButton() {
+
+  const { width } = this.scale;
+
+  const exit = this.add.text(width - 20, 20, "x", {
+    fontFamily: "Pixelify Sans",
+    fontSize: "34px",
+    color: "#ffffff",
+  })
+  .setOrigin(1, 0)
+  .setInteractive({ useHandCursor: true });
+
+  // hover
+  exit.on("pointerover", () => {
+    exit.setColor("#ff4d4d");
+    exit.setScale(1.1);
+  });
+
+  exit.on("pointerout", () => {
+    exit.setColor("#ffffff");
+    exit.setScale(1);
+  });
+
+  // click
+  exit.on("pointerdown", () => {
+
+    // stop timer
+    this.frequencyTimer?.remove(false);
+
+    // chiude minigame
+    this.scene.stop("Minigame9");
+
+    // torna alla scena principale (cambia se necessario)
+    this.scene.start("GameScene");
+
+  });
+
+}
 }
