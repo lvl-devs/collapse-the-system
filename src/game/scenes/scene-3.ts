@@ -97,7 +97,7 @@ export default class Scene3 extends Phaser.Scene {
             duration:2000
         });
 
-        // dopo la dissolvenza passa alla scena 4
+        // dopo la dissolvenza torna al gameplay: Scene4 parte solo dopo Minigame9
         this.endTimer = this.time.delayedCall(5000, ()=>{
             this.startNextScene();
         });
@@ -120,7 +120,7 @@ export default class Scene3 extends Phaser.Scene {
         this.fadeTimer?.remove();
         this.endTimer?.remove();
         this.rainSound?.stop();
-        this.scene.start("Scene4");
+        this.scene.start("GamePlay");
 
     }
 

@@ -469,8 +469,8 @@ private dotH = 0;
     if (this.timerBarFill) this.timerBarFill.width = 0;
 
     this.time.delayedCall(1200, () => {
-      this.scene.stop();
-      this.scene.resume("GamePlay");
+      this.scene.stop("GamePlay");
+      this.scene.start("Scene4");
     });
   }
 
@@ -552,16 +552,7 @@ private dotH = 0;
 
   // click
   exit.on("pointerdown", () => {
-
-    // stop timer
-    this.frequencyTimer?.remove(false);
-
-    // chiude minigame
-    this.scene.stop("Minigame9");
-
-    // torna alla scena principale (cambia se necessario)
-    this.scene.start("GameScene");
-
+    this.exitMinigame();
   });
 
 }
