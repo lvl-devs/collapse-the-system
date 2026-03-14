@@ -43,6 +43,10 @@ export default class GamePlay extends Phaser.Scene {
   private closedToOpenDoorIndex = new Map<number, number>();
   private doorObjectEntries: Array<{ sprite: Phaser.GameObjects.Sprite; openTextureKey: string }> = [];
   private doorHintText?: Phaser.GameObjects.Text;
+  private doorCollisionZones = new Map<string, Phaser.GameObjects.Zone>();
+  private interactKey?: Phaser.Input.Keyboard.Key;
+  private interactHintText?: Phaser.GameObjects.Text;
+  private interactables: Array<{ target: { x: number, y: number }, type: string }> = [];
 
   private resolveTextureKeyFromImage(imageName: string, fallbackKey: string): string {
     const fileName = imageName.split(/[/\\]/).pop() ?? "";
@@ -132,9 +136,44 @@ export default class GamePlay extends Phaser.Scene {
     this.closedToOpenDoorIndex = closedToOpen;
     this.doorLayers = layers.filter((layer) => layer.layer.name.toLowerCase().includes("door"));
 
+    // Ensure previous collision zones are cleaned up if re-configured
+    this.doorCollisionZones.forEach(zone => zone.destroy());
+    this.doorCollisionZones.clear();
+
+    const frontDoorClosedIndices = [firstgid + 0, firstgid + 2];
+    const sideDoorClosedIndices = [firstgid + 3, firstgid + 5];
+
     this.doorLayers.forEach((layer) => {
       layer.setCollision(closedIndices, true, true);
       layer.setCollision(openIndices, false, true);
+
+      layer.forEachTile((tile) => {
+        if (!closedIndices.includes(tile.index)) return;
+
+        let width = 32;
+        let height = 32;
+        let offsetX = 16;
+        let offsetY = 16;
+
+        if (frontDoorClosedIndices.includes(tile.index)) {
+          width = 64;
+          height = 64;
+          offsetX = 32;
+          offsetY = 0; // Center is bottom-left pixelY + 32, but Zone origin naturally pushes it correctly
+        } else if (sideDoorClosedIndices.includes(tile.index)) {
+          width = 32;
+          height = 64;
+          offsetX = 16;
+          offsetY = 0;
+        } else {
+          return;
+        }
+
+        const zone = this.add.zone(tile.pixelX + offsetX, tile.pixelY + offsetY, width, height);
+        this.physics.add.existing(zone, true);
+        this.physics.add.collider(this.playerController!.sprite, zone);
+        this.doorCollisionZones.set(`${tile.x},${tile.y}`, zone);
+      });
     });
   }
 
@@ -170,6 +209,11 @@ export default class GamePlay extends Phaser.Scene {
     const updatedTile = nearbyDoor.layer.getTileAt(nearbyDoor.tile.x, nearbyDoor.tile.y, true);
     if (updatedTile) {
       updatedTile.setCollision(false, false, false, false);
+    }
+
+    const zone = this.doorCollisionZones.get(`${nearbyDoor.tile.x},${nearbyDoor.tile.y}`);
+    if (zone && zone.body) {
+      (zone.body as Phaser.Physics.Arcade.Body).enable = false;
     }
 
     nearbyDoor.layer.calculateFacesWithin(nearbyDoor.tile.x, nearbyDoor.tile.y, 1, 1);
@@ -265,6 +309,48 @@ export default class GamePlay extends Phaser.Scene {
     this.doorHintText.setVisible(true);
     // Position popup over player's head
     this.doorHintText.setPosition(this.playerController.sprite.x, this.playerController.sprite.y - 45);
+  }
+
+  private getNearbyInteractable(): { target: { x: number, y: number }, type: string } | undefined {
+    if (!this.playerController) return undefined;
+    let bestCandidate: { target: { x: number, y: number }, type: string } | undefined = undefined;
+    let bestDist = Infinity;
+    const player = this.playerController.sprite;
+    this.interactables.forEach(item => {
+       const distance = Phaser.Math.Distance.Between(player.x, player.y, item.target.x, item.target.y);
+       if (distance <= DOOR_INTERACT_DISTANCE && distance < bestDist) {
+          bestDist = distance;
+          bestCandidate = item;
+       }
+    });
+    return bestCandidate;
+  }
+
+  private updateInteractHintPopup(): void {
+    if (!this.interactHintText || !this.playerController) {
+      return;
+    }
+
+    const nearby = this.getNearbyInteractable();
+    if (!nearby) {
+      this.interactHintText.setVisible(false);
+      return;
+    }
+
+    this.interactHintText.setVisible(true);
+    this.interactHintText.setPosition(this.playerController.sprite.x, this.playerController.sprite.y - 65);
+  }
+
+  private tryInteract(): void {
+    const nearby = this.getNearbyInteractable();
+    if (!nearby) return;
+    
+    // Fermiamo l'audio come quando andiamo in pausa
+    this.pauseCurrentLevelAudio();
+    
+    // Lanciamo la nuova scena del terminale o server
+    this.scene.launch("TerminalScene", { parentSceneKey: this.scene.key, type: nearby.type });
+    this.scene.pause();
   }
 
   preload() {
@@ -385,6 +471,10 @@ export default class GamePlay extends Phaser.Scene {
                     sprite.setOrigin(0, 1);
                     sprite.setFlip(flipX, flipY);
 
+                    if (layer.name === "computers" || layer.name === "servers") {
+                       this.interactables.push({ target: sprite, type: layer.name === "computers" ? "pc" : "server" });
+                    }
+
                     const objectDoorOpenTexture = DOOR_OBJECT_OPEN_BY_CLOSED[textureKey];
                     if (objectDoorOpenTexture && this.textures.exists(objectDoorOpenTexture)) {
                       this.doorObjectEntries.push({ sprite, openTextureKey: objectDoorOpenTexture });
@@ -426,9 +516,17 @@ export default class GamePlay extends Phaser.Scene {
     this.cameras.main.setZoom(1.1);
 
 
+    // Aggiungo zona interattiva per l'ingresso del corridoio ovest
+    // Le stime dal json danno l'ingresso intorno a x: -160, y: -96
+    this.interactables.push({
+      target: { x: -160, y: -96 },
+      type: "west-corridor"
+    });
+
     this.escPauseKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.collisionDebugKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.C);
     this.doorInteractKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+    this.interactKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.escPauseKey?.on("down", this.openPauseMenu, this);
 
     this.doorHintText = this.add
@@ -440,6 +538,18 @@ export default class GamePlay extends Phaser.Scene {
         padding: { x: 12, y: 6 },
       })
       .setScrollFactor(0)
+      .setOrigin(0.5, 0.5)
+      .setDepth(1001)
+      .setVisible(false);
+
+    this.interactHintText = this.add
+      .text(0, 0, "Premi E per interagire", {
+        fontFamily: GameData.globals.defaultFont.key,
+        fontSize: "18px",
+        color: "#ffffff",
+        backgroundColor: "#000000aa",
+        padding: { x: 12, y: 6 },
+      })
       .setOrigin(0.5, 0.5)
       .setDepth(1001)
       .setVisible(false);
@@ -467,6 +577,10 @@ export default class GamePlay extends Phaser.Scene {
       this.doorObjectEntries = [];
       this.doorHintText?.destroy();
       this.doorHintText = undefined;
+      this.interactKey = undefined;
+      this.interactHintText?.destroy();
+      this.interactHintText = undefined;
+      this.interactables = [];
       this.tileDebugGraphics?.destroy();
       this.stopStepSfx();
     });
@@ -488,6 +602,12 @@ export default class GamePlay extends Phaser.Scene {
     if (this.doorInteractKey != null && Phaser.Input.Keyboard.JustDown(this.doorInteractKey)) {
       this.tryOpenNearbyDoor();
       this.updateDoorHintPopup();
+    }
+
+    this.updateInteractHintPopup();
+    if (this.interactKey != null && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
+      this.tryInteract();
+      this.updateInteractHintPopup();
     }
 
     this.playerController.update();
