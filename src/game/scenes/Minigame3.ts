@@ -14,8 +14,6 @@ type BitCell = {
 };
 
 export default class Minigame3 extends Phaser.Scene {
-  private boardX!: number;
-  private boardY!: number;
   private uiScale!: number;
 
   private monitorX!: number;
@@ -40,8 +38,6 @@ export default class Minigame3 extends Phaser.Scene {
 
   private progress = 0;
   private acceptingInput = false;
-
-  private screenCenterY = 0;
 
   private progressFill?: Phaser.GameObjects.Rectangle;
   private progressText?: Phaser.GameObjects.Text;
@@ -102,9 +98,6 @@ export default class Minigame3 extends Phaser.Scene {
   }
 
   private computeResponsiveLayout(width: number, height: number) {
-    this.boardX = width / 2;
-    this.boardY = height / 2;
-
     const bgScale = Math.min(width / this.BG_W, height / this.BG_H) * 1.18;
     const renderW = this.BG_W * bgScale;
     const renderH = this.BG_H * bgScale;
@@ -118,7 +111,6 @@ export default class Minigame3 extends Phaser.Scene {
     this.monitorW = this.SCREEN_W * bgScale;
     this.monitorH = this.SCREEN_H * bgScale;
 
-    this.screenCenterY = this.monitorY;
   }
 
   private drawBackground() {
@@ -326,7 +318,7 @@ export default class Minigame3 extends Phaser.Scene {
     }
 
     const count = 4;
-    const allIndexes = Phaser.Utils.Array.NumberArray(0, this.cells.length - 1);
+    const allIndexes = Phaser.Utils.Array.NumberArray(0, this.cells.length - 1) as number[];
     Phaser.Utils.Array.Shuffle(allIndexes);
 
     this.targetIndexes = allIndexes.slice(0, count);

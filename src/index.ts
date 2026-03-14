@@ -43,7 +43,7 @@ window.addEventListener("load", () => {
       Credits,
       PauseMenu,
       MiniGame6,
-      MiniGame4
+      MiniGame4,
       Minigame1,
       Minigame2,
       Minigame3,

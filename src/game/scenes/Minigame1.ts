@@ -48,8 +48,7 @@ const WIRE_COLORS: WireColor[] = [
   { name: "white",  hex: 0xeeeeff },
 ];
 
-const GRAY_COLOR: WireColor = { name: "gray", hex: 0x6c7687 };
-const SOCKET_COUNT = 4; 
+const SOCKET_COUNT = 4;
 const TABLET_RATIO = 1.68;
 
 // Bezier handle offsets
@@ -74,7 +73,6 @@ export default class Minigame1 extends Phaser.Scene {
 
   // UI
   private alertText?: Phaser.GameObjects.Text;
-  private alertBg?: Phaser.GameObjects.Rectangle;
   private draggingWire?: WireState;
   private draggingPointerId?: number;
 
@@ -326,19 +324,22 @@ private drawBackground() {
   ];
 
   const colors = Phaser.Utils.Array.Shuffle([...WIRE_COLORS]) as WireColor[];
-  const groupA = colors.slice(0, 4); // left ↔ right
-  const groupB = colors.slice(4, 8); // top  ↔ bottom
+  const groupA = colors.slice(0, SOCKET_COUNT); // left ↔ right
+  const groupB = colors.slice(SOCKET_COUNT, SOCKET_COUNT * 2); // top  ↔ bottom
 
   const revealMask = Phaser.Utils.Array.Shuffle([
     ...Array(4).fill(true),
     ...Array(4).fill(false),
   ]) as boolean[];
 
-  const slots = () => Phaser.Utils.Array.Shuffle([0, 1, 2, 3]) as number[];
-  const leftSlots = slots();
-  const rightSlots = slots();
-  const topSlots = slots();
-  const bottomSlots = slots();
+  const slots = () => Phaser.Utils.Array.Shuffle(Array.from({ length: SOCKET_COUNT }, (_, i) => i)) as number[];
+  const sidePoints = {
+    left: vPos.map((y) => ({ x: leftX, y })),
+    right: vPos.map((y) => ({ x: rightX, y })),
+    top: hPos.map((x) => ({ x, y: topY })),
+    bottom: hPos.map((x) => ({ x, y: bottomY })),
+  };
+  const { leftSlots, rightSlots, topSlots, bottomSlots } = this.buildSocketPlan(slots, sidePoints);
 
   // left ↔ right
   for (let i = 0; i < groupA.length; i++) {
@@ -358,11 +359,6 @@ private drawBackground() {
     this.createWire(color, sA, sB);
   }
 }
-
-  /** Returns an array of `count` values starting at `origin` spaced by `step`. */
-  private linspace(origin: number, step: number, count: number): number[] {
-    return Array.from({ length: count }, (_, i) => origin + i * step);
-  }
 
   private buildSocketPlan(
     slotsFactory: () => number[],
@@ -776,19 +772,24 @@ private drawBackground() {
 }
 
   private buildCurve(wire: WireState): Phaser.Curves.CubicBezier {
-    const cp = this.s(CABLE_CP1);
+    const cpStart = this.s(CABLE_CP1);
+    const cpEnd = this.s(CABLE_CP2);
     const V2 = Phaser.Math.Vector2;
 
     const cpDir = (side: Side): { ox: number; oy: number } => {
-      if (side === "left")   return { ox:  cp, oy: 0  };
-      if (side === "right")  return { ox: -cp, oy: 0  };
-      if (side === "top")    return { ox: 0,   oy:  cp };
-      /* bottom */           return { ox: 0,   oy: -cp };
+      if (side === "left")   return { ox:  cpStart, oy: 0       };
+      if (side === "right")  return { ox: -cpStart, oy: 0       };
+      if (side === "top")    return { ox: 0,        oy:  cpStart };
+      /* bottom */           return { ox: 0,        oy: -cpStart };
     };
 
     const d1 = cpDir(wire.anchorSide);
     // When free end is dragging, use a neutral outward direction based on target side
     const d2 = wire.connected ? cpDir(wire.targetSide) : { ox: 0, oy: 0 };
+    if (wire.connected) {
+      if (d2.ox !== 0) d2.ox = Math.sign(d2.ox) * cpEnd;
+      if (d2.oy !== 0) d2.oy = Math.sign(d2.oy) * cpEnd;
+    }
 
     return new Phaser.Curves.CubicBezier(
       new V2(wire.anchorX, wire.anchorY),

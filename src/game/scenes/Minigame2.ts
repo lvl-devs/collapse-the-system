@@ -32,16 +32,11 @@ export default class Minigame2 extends Phaser.Scene {
   private readonly PAD_BTN_OFFSET_X = 25;
   private readonly PAD_BTN_OFFSET_Y = 23;
 
-  private bg!: Phaser.GameObjects.Image;
-  private computer!: Phaser.GameObjects.Image;
-
-  private monitorBg!: Phaser.GameObjects.Rectangle;
-  private titleText!: Phaser.GameObjects.Text;
+  
 
   private folderLeft!: Phaser.GameObjects.Image;
   private folderRight!: Phaser.GameObjects.Image;
 
-  private progressFill!: Phaser.GameObjects.Rectangle;
   private progressText!: Phaser.GameObjects.Text;
   private progressSegments: Phaser.GameObjects.Rectangle[] = [];
 
@@ -125,7 +120,7 @@ export default class Minigame2 extends Phaser.Scene {
   private createBackground() {
     const { width, height } = this.scale;
 
-    this.bg = this.add
+    this.add
       .image(width / 2, height / 2, "mg2_bg")
       .setDisplaySize(width, height)
       .setDepth(0);
@@ -159,7 +154,7 @@ export default class Minigame2 extends Phaser.Scene {
   }
 
   private createBaseArt() {
-    this.computer = this.add
+    this.add
       .image(this.baseX, this.baseY, "mg2_computer")
       .setScale(this.baseScale)
       .setDepth(1);
@@ -169,9 +164,7 @@ export default class Minigame2 extends Phaser.Scene {
     const cx = this.ax(this.MONITOR_CX);
     const cy = this.ay(this.MONITOR_CY);
     const mw = this.s(this.MONITOR_W);
-    const mh = this.s(this.MONITOR_H);
-
-    this.titleText = this.add
+    this.add
       .text(cx, cy - this.ui(42), "AWAITING INPUT SEQUENCE", {
         fontFamily: "Pixelify Sans",
         fontSize: `${Math.max(10, Math.round(this.ui(15)))}px`,
@@ -210,7 +203,7 @@ export default class Minigame2 extends Phaser.Scene {
       .rectangle(cx, barY, barW, barH, 0x071018, 1)
       .setDepth(3);
 
-    this.progressFill = this.add
+    this.add
   .rectangle(cx - barW / 2, barY, 0, 0, 0x72ef74, 0)
   .setOrigin(0, 0.5)
   .setDepth(4);
