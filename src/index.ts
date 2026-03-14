@@ -11,6 +11,16 @@ import Options from "./game/scenes/Options";
 import Credits from "./game/scenes/Credits";
 import PauseMenu from "./game/scenes/PauseMenu";
 import TerminalScene from "./game/scenes/TerminalScene";
+import MiniGame6 from "./game/scenes/MiniGame-6";
+import MiniGame4 from "./game/scenes/MiniGame-4";
+import Minigame1 from "./game/scenes/Minigame1";
+import Minigame2 from "./game/scenes/Minigame2";
+import Minigame3 from "./game/scenes/Minigame3";
+import Minigame4 from "./game/scenes/Minigame4";
+import Minigame5 from "./game/scenes/Minigame5";
+import Minigame7 from "./game/scenes/Minigame7";
+import Minigame9 from "./game/scenes/Minigame9";
+
 window.addEventListener("load", () => {
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -34,6 +44,15 @@ window.addEventListener("load", () => {
       Credits,
       PauseMenu,
       TerminalScene,
+      MiniGame6,
+      MiniGame4,
+      Minigame1,
+      Minigame2,
+      Minigame3,
+      Minigame4,
+      Minigame5,
+      Minigame7,
+      Minigame9,
     ],
     physics: {
       default: "arcade",

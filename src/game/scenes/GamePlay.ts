@@ -590,7 +590,7 @@ export default class GamePlay extends Phaser.Scene {
     );
   }
 
-  update() {
+  update(): void {
     if (this.hasPlayerReachedStairs) return;
 
     if (this.collisionDebugKey != null && Phaser.Input.Keyboard.JustDown(this.collisionDebugKey)) {
