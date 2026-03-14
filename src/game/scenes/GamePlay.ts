@@ -47,6 +47,7 @@ export default class GamePlay extends Phaser.Scene {
   private interactKey?: Phaser.Input.Keyboard.Key;
   private interactHintText?: Phaser.GameObjects.Text;
   private interactables: Array<{ target: { x: number, y: number }, type: string }> = [];
+  private numberKeys: Record<string, Phaser.Input.Keyboard.Key> = {};
 
   private resolveTextureKeyFromImage(imageName: string, fallbackKey: string): string {
     const fileName = imageName.split(/[/\\]/).pop() ?? "";
@@ -585,6 +586,12 @@ export default class GamePlay extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(100);
 
+    // Scorciatoie debug per minigiochi (1-9)
+    const keys = ["ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"];
+    keys.forEach((k, i) => {
+        this.numberKeys[(i + 1).toString()] = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes[k as keyof typeof Phaser.Input.Keyboard.KeyCodes]);
+    });
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.PAUSE, this.pauseCurrentLevelAudio, this);
       this.events.off(Phaser.Scenes.Events.RESUME, this.resumeCurrentLevelMusic, this);
@@ -621,14 +628,34 @@ export default class GamePlay extends Phaser.Scene {
 
     if (this.doorInteractKey != null && Phaser.Input.Keyboard.JustDown(this.doorInteractKey)) {
       this.tryOpenNearbyDoor();
-      this.updateDoorHintPopup();
     }
 
-    this.updateInteractHintPopup();
     if (this.interactKey != null && Phaser.Input.Keyboard.JustDown(this.interactKey)) {
       this.tryInteract();
-      this.updateInteractHintPopup();
     }
+
+    // Gestione scorciatoie numeriche
+    const minigameMap: Record<string, string> = {
+        "1": "Minigame1",
+        "2": "Minigame2",
+        "3": "Minigame3",
+        "4": "Minigame4",
+        "5": "Minigame5",
+        "6": "MiniGame6",
+        "7": "Minigame7",
+        "9": "Minigame9"
+    };
+
+    for (const [keyNum, sceneKey] of Object.entries(minigameMap)) {
+        const key = this.numberKeys[keyNum];
+        if (key && Phaser.Input.Keyboard.JustDown(key)) {
+            this.pauseCurrentLevelAudio();
+            this.scene.launch(sceneKey, { parentSceneKey: this.scene.key });
+            this.scene.pause();
+            break;
+        }
+    }
+    this.updateInteractHintPopup();
 
     this.playerController.update();
     this.updateStepSfx();
