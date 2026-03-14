@@ -83,7 +83,7 @@ export default class MapProcessor {
 
             const hasCollisionProp = this.getProperty(layerData, this.COLLISION_PROP) === true;
             const isFloorProp = this.getProperty(layerData, this.IS_FLOOR_PROP) === true;
-            
+
             const lowerName = layerData.name.toLowerCase();
             const isFloorName = lowerName.includes("floor") || lowerName.includes("pavimento") || lowerName.includes("ground");
             const isWallName = lowerName.includes("wall") || lowerName.includes("mura") || lowerName.includes("ostacoli") || lowerName.includes("obstacle") || lowerName.includes("collision");
@@ -129,17 +129,17 @@ export default class MapProcessor {
             });
         });
 
-        if (minX === Infinity) { 
-            minX = 0; minY = 0; maxX = scene.scale.width; maxY = scene.scale.height; 
+        if (minX === Infinity) {
+            minX = 0; minY = 0; maxX = scene.scale.width; maxY = scene.scale.height;
         }
 
         // Spawn point selection
         let spawnX = (minX + maxX) / 2;
         let spawnY = (minY + maxY) / 2;
 
-        const spawnObject = map.findObject("objects", (obj) => 
-            obj.type === this.SPAWN_TYPE || 
-            obj.name?.toLowerCase().includes("spawn") || 
+        const spawnObject = map.findObject("objects", (obj) =>
+            obj.type === this.SPAWN_TYPE ||
+            obj.name?.toLowerCase().includes("spawn") ||
             obj.name === "player"
         );
 
@@ -148,7 +148,7 @@ export default class MapProcessor {
             spawnY = spawnObject.y;
         } else if (floorTiles.length > 0) {
             const centerX = (minX + maxX) / 2;
-            const centerY = (minY + maxY) / 2;
+            const centerY = ((minY + maxY) / 2) + 200; // Spostiamo lo spawn ideale più in basso
             let bestDist = Infinity;
             floorTiles.forEach(t => {
                 const dist = Phaser.Math.Distance.Between(centerX, centerY, t.x, t.y);
