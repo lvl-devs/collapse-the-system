@@ -54,15 +54,15 @@ Una volta in aria, il piano entrerà nella seconda fase.`,
 
     preload(){
 
-        this.load.image("scena-hacker","../assets/images/scena-hacker.svg");
-        this.load.image("scena-agent","../assets/images/scena-agent.svg");
+        this.load.image("scena-hacker","images/scena-hacker.svg");
+        this.load.image("scena-agent","images/scena-agent.svg");
 
         // suoni dialogo
-        this.load.audio("hacker-text-1","../assets/sounds/hacker-text-1.mp3");
-        this.load.audio("agent-text-1","../assets/sounds/agent-text-1.mp3");
-        this.load.audio("hacker-text-2","../assets/sounds/hacker-text-2.mp3");
-        this.load.audio("agent-text-2","../assets/sounds/agent-text-2.mp3");
-        this.load.audio("hacker-text-3","../assets/sounds/hacker-text-3.mp3");
+        this.load.audio("hacker-text-1","sounds/Hacker-text-1.mp3");
+        this.load.audio("agent-text-1","sounds/Agent-text-1.mp3");
+        this.load.audio("hacker-text-2","sounds/Hacker-text-2.mp3");
+        this.load.audio("agent-text-2","sounds/Agent-text-2.mp3");
+        this.load.audio("hacker-text-3","sounds/Hacker-text-3.mp3");
 
     }
 
@@ -145,6 +145,9 @@ Una volta in aria, il piano entrerà nella seconda fase.`,
         this.dialogIndex++;
 
         if(this.dialogIndex >= this.dialog.length){
+            this.time.delayedCall(1000, ()=>{
+                this.scene.start("Scene3");
+            });
             return;
         }
 

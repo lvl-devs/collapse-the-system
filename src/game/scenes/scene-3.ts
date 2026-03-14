@@ -12,11 +12,11 @@ export default class Scene3 extends Phaser.Scene {
 
     preload(){
 
-        this.load.image("scena-aereo","../assets/images/scena-aereo.png");
-        this.load.image("scena-hacker-scientist","../assets/images/scena-hacker-scientist.png");
+        this.load.image("scena-aereo","images/scena-aereo.png");
+        this.load.image("scena-hacker-scientist","images/scena-hacker-scientist.png");
 
         // suono pioggia
-        this.load.audio("rain","../assets/sounds/rain.mp3");
+        this.load.audio("rain","sounds/rain.mp3");
 
     }
 
@@ -60,6 +60,12 @@ export default class Scene3 extends Phaser.Scene {
             targets:this.sceneDialog,
             alpha:1,
             duration:2000
+        });
+
+        // dopo la dissolvenza passa alla scena 4
+        this.time.delayedCall(5000, ()=>{
+            this.rainSound.stop();
+            this.scene.start("Scene4");
         });
 
     }

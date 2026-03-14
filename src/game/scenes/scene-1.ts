@@ -10,7 +10,6 @@ export default class Scene1 extends Phaser.Scene {
     private voice1!: Phaser.Sound.BaseSound;
     private voice2!: Phaser.Sound.BaseSound;
     private voice3!: Phaser.Sound.BaseSound;
-    private voice4!: Phaser.Sound.BaseSound;
 
     private typingEvent!: Phaser.Time.TimerEvent;
 
@@ -37,13 +36,12 @@ agente della sicurezza  nell’aeroporto.
 
     preload(){
 
-        this.load.image("scene1","../assets/images/scena-1.png");
-        this.load.image("scene2","../assets/images/image1.png");
+        this.load.image("scene1","images/scena-1.png");
+        this.load.image("scene2","images/image1.png");
 
-        this.load.audio("voice1","../assets/sounds/voice-hacker-1.mp3");
-        this.load.audio("voice2","../assets/sounds/voice-hacker-2.mp3");
-        this.load.audio("voice3","../assets/sounds/voice-hacker-3.mp3");
-        this.load.audio("voice4","../assets/sounds/voice-hacker-4.mp3");
+        this.load.audio("voice1","sounds/Hacker-text-1.mp3");
+        this.load.audio("voice2","sounds/Hacker-text-2.mp3");
+        this.load.audio("voice3","sounds/Hacker-text-3.mp3");
 
     }
 
@@ -131,7 +129,6 @@ agente della sicurezza  nell’aeroporto.
         this.voice1 = this.sound.add("voice1");
         this.voice2 = this.sound.add("voice2");
         this.voice3 = this.sound.add("voice3");
-        this.voice4 = this.sound.add("voice4");
 
         this.voice1.play();
 
@@ -141,14 +138,6 @@ agente della sicurezza  nell’aeroporto.
 
         this.voice2.once("complete", ()=>{
             this.voice3.play();
-        });
-
-        this.voice3.once("complete", ()=>{
-
-            this.time.delayedCall(2800, ()=>{
-                this.voice4.play();
-            });
-
         });
 
     }
@@ -168,6 +157,12 @@ agente della sicurezza  nell’aeroporto.
 
                 this.text.text += this.message[i];
                 i++;
+
+                if(i >= this.message.length){
+                    this.time.delayedCall(3000, ()=>{
+                        this.scene.start("Scene2");
+                    });
+                }
 
             }
 
@@ -193,7 +188,11 @@ agente della sicurezza  nell’aeroporto.
         // nasconde il messaggio di skip
         this.skipText.setVisible(false);
 
-        // le voci continuano normalmente
+        // transizione alla scena successiva
+        this.time.delayedCall(2000, ()=>{
+            this.scene.start("Scene2");
+        });
+
     }
 
 }

@@ -18,13 +18,13 @@ export default class Scene4 extends Phaser.Scene {
     preload(){
 
         // immagini
-        this.load.image("scientist1","../assets/images/scientist-1.png");
-        this.load.image("scientist2","../assets/images/scientist-2.png");
-        this.load.image("scientist3","../assets/images/scientist-3.png");
+        this.load.image("scientist1","images/scientist-1.png");
+        this.load.image("scientist2","images/scientist-2.png");
+        this.load.image("scientist3","images/scientist-3.png");
 
         // suoni
-        this.load.audio("explosive","../assets/sounds/Explosion.mp3");
-        this.load.audio("win","../assets/sounds/Win.mp3");
+        this.load.audio("explosive","sounds/Explosion.mp3");
+        this.load.audio("win","sounds/win.mp3");
 
     }
 
@@ -119,6 +119,11 @@ export default class Scene4 extends Phaser.Scene {
             targets:this.winText,
             alpha:1,
             duration:1000
+        });
+
+        // dopo 4 secondi avvia il gioco
+        this.time.delayedCall(4000, ()=>{
+            this.scene.start("GamePlay");
         });
 
     }
