@@ -26,7 +26,6 @@ export default class Minigame9 extends Phaser.Scene {
 
   private remoteScreenX = 0;
   private remoteScreenY = 0;
-  private remoteScreenW = 0;
   private remoteScreenH = 0;
 
   private remoteDecimal = 120; // 252.120 MHz iniziale
@@ -128,7 +127,6 @@ private dotH = 0;
 
     this.remoteScreenX = remoteX;
     this.remoteScreenY = remoteY - remoteH * 0.06;
-    this.remoteScreenW = remoteW * 0.63;
     this.remoteScreenH = remoteH * 0.16;
 
     this.remoteFreqText = this.add

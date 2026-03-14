@@ -70,10 +70,8 @@ export default class Minigame5 extends Phaser.Scene {
   private passButton?: Phaser.GameObjects.Image;
   private xrayTween?: Phaser.Tweens.Tween;
   private xrayReadyForDecision = false;
-  private failOverlay?: Phaser.GameObjects.Rectangle;
   private failTitleText?: Phaser.GameObjects.Text;
   private failReasonText?: Phaser.GameObjects.Text;
-  private successOverlay?: Phaser.GameObjects.Rectangle;
   private successTitleText?: Phaser.GameObjects.Text;
   private successReasonText?: Phaser.GameObjects.Text;
 
@@ -211,10 +209,8 @@ export default class Minigame5 extends Phaser.Scene {
     this.hintText = undefined;
     this.stopButton = undefined;
     this.passButton = undefined;
-    this.failOverlay = undefined;
     this.failTitleText = undefined;
     this.failReasonText = undefined;
-    this.successOverlay = undefined;
     this.successTitleText = undefined;
     this.successReasonText = undefined;
 
@@ -499,7 +495,7 @@ export default class Minigame5 extends Phaser.Scene {
   private showFailureScreen(reason: string): void {
     const { width, height } = this.scale;
 
-    this.failOverlay = this.add
+    this.add
       .rectangle(width / 2, height / 2, width, height, 0x05070b, 0.9)
       .setDepth(20);
 
@@ -564,7 +560,7 @@ export default class Minigame5 extends Phaser.Scene {
   private showSuccessScreen(): void {
     const { width, height } = this.scale;
 
-    this.successOverlay = this.add
+    this.add
       .rectangle(width / 2, height / 2, width, height, 0x05070b, 0.88)
       .setDepth(20);
 

@@ -34,9 +34,6 @@ export default class Minigame4 extends Phaser.Scene {
   private uploadText?: Phaser.GameObjects.Text;
   private errorText?: Phaser.GameObjects.Text;
 
-  private terminalFrame?: Phaser.GameObjects.Rectangle;
-  private terminalInner?: Phaser.GameObjects.Rectangle;
-
   private progressBarWidth = 0;
   private progressBarHeight = 0;
   private totalMissingLetters = 0;
@@ -132,7 +129,7 @@ export default class Minigame4 extends Phaser.Scene {
       0.92
     );
 
-    this.terminalFrame = this.add
+    this.add
       .rectangle(
         this.panelX,
         this.panelY,
@@ -143,7 +140,7 @@ export default class Minigame4 extends Phaser.Scene {
       )
       .setStrokeStyle(4, 0x2cf7a1, 0.9);
 
-    this.terminalInner = this.add
+    this.add
       .rectangle(
         this.panelX,
         this.panelY,
