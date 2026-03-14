@@ -97,6 +97,7 @@ export const GameData: GameDataType = {
   musicVolume: 0.6,
 
   images: [
+    { name: "bg_logo", path: "images/main/bg_logo.png" },
     { name: "bg_logo", path: "/images/bg_logo.png" },
     { name: "tastierino", path: "/images/Tastierino.png" },
     { name: "button_1", path: "/images/1.png" },
